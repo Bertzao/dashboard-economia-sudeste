@@ -76,6 +76,9 @@ geojson_ucs = carregar_geojson_aux("ucs_se")
 geojson_rodovias = carregar_geojson_aux("rodovias_se")
 geojson_ferrovias = carregar_geojson_aux("ferrovias_se")
 geojson_potencial = carregar_geojson_aux("potencial_agricola_se")
+geojson_hidrovias = carregar_geojson_aux("hidrovias_se")
+geojson_portos = carregar_geojson_aux("portos_se")
+geojson_aeroportos = carregar_geojson_aux("aeroportos_se")
 
 @st.cache_data
 def carregar_centroides():
@@ -408,12 +411,55 @@ with tab2:
                 fig_log = go.Figure()
                 fig_log.update_layout(mapbox=dict(style="carto-positron", zoom=5, center=dict(lat=-20.0, lon=-45.0)))
                 layers_log = []
+                
+                # Hidrovias (rios navegáveis) — linhas azuis tracejadas
+                if geojson_hidrovias:
+                    layers_log.append({"source": geojson_hidrovias, "type": "line", "color": "rgba(30, 136, 229, 0.6)", "line": {"width": 1.8, "dasharray": [4, 2]}})
+                    fig_log.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(30, 136, 229, 0.7)", width=2, dash="dash"), name="Hidrovias"))
+                
+                # Rodovias — linhas vermelhas
                 if geojson_rodovias:
                     layers_log.append({"source": geojson_rodovias, "type": "line", "color": "rgba(200, 0, 0, 0.6)", "line": {"width": 1.5}})
                     fig_log.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(200, 0, 0, 0.6)", width=2), name="Rodovias (BRs)"))
+                
+                # Ferrovias — linhas pretas
                 if geojson_ferrovias:
                     layers_log.append({"source": geojson_ferrovias, "type": "line", "color": "rgba(0, 0, 0, 0.8)", "line": {"width": 2}})
                     fig_log.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(0, 0, 0, 0.8)", width=2), name="Ferrovias"))
+                
+                # Portos — marcadores azuis
+                if geojson_portos:
+                    lats_p, lons_p, nomes_p = [], [], []
+                    for ft in geojson_portos.get("features", []):
+                        geom = ft.get("geometry", {})
+                        if geom.get("type") == "Point":
+                            coords = geom["coordinates"]
+                            lons_p.append(coords[0])
+                            lats_p.append(coords[1])
+                            nomes_p.append(ft.get("properties", {}).get("nome", "Porto"))
+                    if lats_p:
+                        fig_log.add_trace(go.Scattermapbox(
+                            lat=lats_p, lon=lons_p, mode="markers",
+                            marker=dict(size=10, color="#1565C0", symbol="harbor"),
+                            text=nomes_p, hoverinfo="text", name="Portos ⚓"
+                        ))
+                
+                # Aeroportos — marcadores vermelhos
+                if geojson_aeroportos:
+                    lats_a, lons_a, nomes_a = [], [], []
+                    for ft in geojson_aeroportos.get("features", []):
+                        geom = ft.get("geometry", {})
+                        if geom.get("type") == "Point":
+                            coords = geom["coordinates"]
+                            lons_a.append(coords[0])
+                            lats_a.append(coords[1])
+                            nomes_a.append(ft.get("properties", {}).get("nome", "Aeroporto"))
+                    if lats_a:
+                        fig_log.add_trace(go.Scattermapbox(
+                            lat=lats_a, lon=lons_a, mode="markers",
+                            marker=dict(size=9, color="#C62828", symbol="airport"),
+                            text=nomes_a, hoverinfo="text", name="Aeroportos ✈️"
+                        ))
                 
                 fig_log.update_layout(
                     mapbox_layers=layers_log, margin={"r":0,"t":0,"l":0,"b":0},
