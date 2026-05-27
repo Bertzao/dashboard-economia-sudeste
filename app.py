@@ -440,7 +440,7 @@ with tab2:
                     if lats_p:
                         fig_log.add_trace(go.Scattermapbox(
                             lat=lats_p, lon=lons_p, mode="markers",
-                            marker=dict(size=10, color="#1565C0", symbol="harbor"),
+                            marker=dict(size=10, color="#1565C0"),
                             text=nomes_p, hoverinfo="text", name="Portos ⚓"
                         ))
                 
@@ -457,7 +457,7 @@ with tab2:
                     if lats_a:
                         fig_log.add_trace(go.Scattermapbox(
                             lat=lats_a, lon=lons_a, mode="markers",
-                            marker=dict(size=9, color="#C62828", symbol="airport"),
+                            marker=dict(size=9, color="#C62828"),
                             text=nomes_a, hoverinfo="text", name="Aeroportos ✈️"
                         ))
                 
