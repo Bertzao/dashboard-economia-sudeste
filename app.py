@@ -336,6 +336,7 @@ with tab2:
                 layers_rest = []
                 
                 if geojson_biomas:
+                    import unicodedata
                     cores_biomas = {
                         "Mata Atlântica": "rgba(0, 170, 160, 0.50)",   # Teal/verde-azulado vibrante
                         "Cerrado": "rgba(194, 140, 80, 0.50)",        # Marrom dourado
@@ -346,12 +347,25 @@ with tab2:
                         "Cerrado": "rgba(194, 140, 80, 0.9)",
                         "Caatinga": "rgba(230, 200, 90, 0.9)",
                     }
+                    # Criar lookup normalizado para lidar com encoding duplo de acentos
+                    norm_to_key = {}
+                    for k in cores_biomas:
+                        norm_to_key[unicodedata.normalize("NFKC", k)] = k
+                    
                     features_by_bioma = {k: [] for k in cores_biomas.keys()}
                     
                     for f in geojson_biomas.get("features", []):
-                        bioma = f.get("properties", {}).get("NM_BIOMA")
-                        if bioma in features_by_bioma:
-                            features_by_bioma[bioma].append(f)
+                        bioma_raw = f.get("properties", {}).get("NM_BIOMA", "")
+                        bioma_norm = unicodedata.normalize("NFKC", bioma_raw)
+                        matched_key = norm_to_key.get(bioma_norm)
+                        if matched_key is None:
+                            # Fallback: tentar match parcial
+                            for norm_k, orig_k in norm_to_key.items():
+                                if "Mata" in bioma_raw and "Mata" in norm_k:
+                                    matched_key = orig_k
+                                    break
+                        if matched_key:
+                            features_by_bioma[matched_key].append(f)
                             
                     for bioma, feats in features_by_bioma.items():
                         if feats:
