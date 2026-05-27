@@ -261,6 +261,7 @@ with tab2:
         )
         fig_vocacao.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend_title_text="Setor Dominante")
         st.plotly_chart(fig_vocacao, use_container_width=True)
+        st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
         
     with col_mapa2:
         st.subheader("Mapa Interativo de Modelos Espaciais")
@@ -295,6 +296,7 @@ with tab2:
                 )
                 fig_vab.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Agropecuário")
                 st.plotly_chart(fig_vab, use_container_width=True)
+                st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
                 
             with aba_potencial:
                 st.markdown("**Aptidão Agrícola das Terras**")
@@ -333,6 +335,7 @@ with tab2:
                     legend=dict(yanchor="bottom", y=0.05, xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.9)", font=dict(color="black"))
                 )
                 st.plotly_chart(fig_pot, use_container_width=True)
+                st.caption("Fonte: IBGE (Macrozoneamento Ecológico-Econômico)")
  
             with aba_restricoes:
                 st.markdown("**Limites de Biomas e Unidades de Conservação**")
@@ -388,6 +391,7 @@ with tab2:
                     legend=dict(yanchor="bottom", y=0.05, xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.9)", font=dict(color="black"))
                 )
                 st.plotly_chart(fig_rest, use_container_width=True)
+                st.caption("Fontes: IBGE (Biomas), Ministério do Meio Ambiente/ICMBio (UCs)")
  
         elif "Indústria" in modelo_selecionado:
             aba_ind1, aba_ind2 = st.tabs(["🏭 VAB Indústria", "🛤️ Infraestrutura Logística"])
@@ -410,6 +414,7 @@ with tab2:
                 )
                 fig_ind.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Indústria")
                 st.plotly_chart(fig_ind, use_container_width=True)
+                st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
                 
             with aba_ind2:
                 fig_log = go.Figure()
@@ -470,6 +475,7 @@ with tab2:
                     legend=dict(yanchor="bottom", y=0.05, xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.9)", font=dict(color="black"))
                 )
                 st.plotly_chart(fig_log, use_container_width=True)
+                st.caption("Fonte: Ministério da Infraestrutura / EPL / DNIT / ANTT")
  
         elif "Serviços" in modelo_selecionado:
             vab_serv_max = df["VAB_Servicos"].quantile(0.95)
@@ -490,6 +496,7 @@ with tab2:
             )
             fig_serv.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Serviços")
             st.plotly_chart(fig_serv, use_container_width=True)
+            st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
  
 # ------------------------------------------------------------------------------
 # ABA 3: Concentração & Dependência
