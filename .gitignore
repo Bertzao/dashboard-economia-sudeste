@@ -18,15 +18,12 @@ populaçao/
 municipios\ e\ UF\ \+\ população/
 mapas\ historicos/
 _backup_antes_limpeza/
-data_export/
 
-# Ignorar arquivos gerados na pasta output, exceto as imagens usadas no modulo5
-output/*
-!output/modulo5/
+# Ignorar a pasta de GPKGs de limpeza locais (não usados no novo dashboard)
+data_clean/
 
-# Arquivos não utilizados ou muito grandes no data_clean
-data_clean/potencial_agri_sudeste.gpkg
-data_clean/hidrovias_sudeste.gpkg
+# Ignorar pasta de saídas (output) inteira
+output/
 
 # Arquivos temporários e logs locais
 *.log

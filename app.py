@@ -1,717 +1,478 @@
-# -*- coding: utf-8 -*-
-"""
-============================================================================
-STREAMLIT DASHBOARD: ECONOMIA REGIONAL E URBANA - SUDESTE DO BRASIL
-============================================================================
-Aplica os conceitos de Von Thünen, Weber, Christaller e Lösch de forma
-interativa com gráficos Plotly e mapas Folium.
-"""
-
-import os
-import json
 import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
-import folium
-from streamlit_folium import folium_static
 import numpy as np
+import os
+import json
+import warnings
 
-import config as cfg
+# ==============================================================================
+# CONFIGURAÇÃO DA PÁGINA
+# ==============================================================================
+st.set_page_config(page_title="Economia Regional Sudeste", layout="wide", page_icon="🗺️")
 
-# Configuração da página do Streamlit
-st.set_page_config(
-    page_title="Economia Regional - Região Sudeste",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Estilização CSS personalizada para visual Premium e Moderno
 st.markdown("""
-    <style>
-    .main {
-        background-color: #F8F9FA;
-    }
-    .stMetric {
-        background-color: #ffffff;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border: 1px solid #E9ECEF;
-    }
-    .stMetric label {
-        font-weight: 600;
-        color: #495057 !important;
-        font-size: 0.9rem !important;
-    }
-    .stMetric div[data-testid="stMetricValue"] {
-        font-weight: 700;
-        color: #212529 !important;
-        font-size: 1.8rem !important;
-    }
-    div[data-testid="stSidebarUserContent"] {
-        padding-top: 2rem;
-    }
-    h1, h2, h3 {
-        font-family: 'Segoe UI', Arial, sans-serif;
-    }
-    .title-container {
-        padding: 1.5rem;
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
-        color: white;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 15px rgba(30, 58, 138, 0.15);
-    }
-    </style>
+<style>
+    .main {background-color: #FAFAFA;}
+    h1, h2, h3 {color: #2C3E50;}
+    .stTabs [data-baseweb="tab-list"] {gap: 24px;}
+    .stTabs [data-baseweb="tab"] {padding: 10px 20px;}
+</style>
 """, unsafe_allow_html=True)
 
-# --------------------------------------------------------------------------
-# 1. FUNÇÕES DE CARREGAMENTO DE DADOS (COM CACHE)
-# --------------------------------------------------------------------------
-CLEAN_DIR = os.path.join(cfg.BASE_DIR, "data_clean")
+st.title("🗺️ Análise de Economia Regional e Urbana — Sudeste do Brasil")
+st.markdown("Dashboard Analítico interativo baseado em modelos espaciais (Von Thünen, Weber, Christaller).")
+
+# ==============================================================================
+# CARREGAMENTO DE DADOS (CACHE)
+# ==============================================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_DIM = os.path.join(BASE_DIR, "data_export", "dim_municipios.csv")
+CSV_FATO = os.path.join(BASE_DIR, "data_export", "fato_pib.csv")
+GEOJSON_PATH = os.path.join(BASE_DIR, "data_export", "mapa_sudeste.json")
 
 @st.cache_data
-def carregar_municipios():
-    caminho = os.path.join(CLEAN_DIR, "municipios_sudeste.gpkg")
-    if os.path.exists(caminho):
-        return gpd.read_file(caminho)
-    return None
-
-@st.cache_data
-def carregar_pib_vab():
-    caminho = os.path.join(CLEAN_DIR, "pib_vab_sudeste.parquet")
-    if os.path.exists(caminho):
-        return pd.read_parquet(caminho)
-    return None
-
-@st.cache_data
-def carregar_cempre():
-    caminho = os.path.join(CLEAN_DIR, "cempre_empregos_sudeste.parquet")
-    if os.path.exists(caminho):
-        return pd.read_parquet(caminho)
-    return None
-
-@st.cache_data
-def carregar_demografia(tipo):
-    if tipo == "hist":
-        caminho = os.path.join(CLEAN_DIR, "historico_colonial_sudeste.parquet")
-    else:
-        caminho = os.path.join(CLEAN_DIR, f"pop_{tipo}_sudeste.parquet")
-    if os.path.exists(caminho):
-        return pd.read_parquet(caminho)
-    return None
-
-@st.cache_data
-def carregar_camada_gpkg(nome):
-    caminho = os.path.join(CLEAN_DIR, f"{nome}_sudeste.gpkg")
-    if os.path.exists(caminho):
-        return gpd.read_file(caminho)
-    return None
-
-@st.cache_data
-def obter_geojson_sudeste():
-    gdf = carregar_municipios()
-    if gdf is not None:
-        return json.loads(gdf.to_json())
-    return None
-
-@st.cache_data
-def obter_geo_interface(nome):
-    gdf = carregar_camada_gpkg(nome)
-    if gdf is not None:
-        return gdf.__geo_interface__
-    return None
-
-# Carregar dados principais
-gdf_mun = carregar_municipios()
-df_pib = carregar_pib_vab()
-df_emp = carregar_cempre()
-
-# --------------------------------------------------------------------------
-# 2. MENU LATERAL DE FILTROS (SIDEBAR)
-# --------------------------------------------------------------------------
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/0/05/Brazil_Region_Sudeste.svg", width=120)
-st.sidebar.title("Filtros de Análise")
-
-if df_pib is not None:
-    # 1. Filtro de UF
-    ufs_disponiveis = sorted(df_pib["SIGLA_UF"].unique())
-    ufs_selecionadas = st.sidebar.multiselect(
-        "Selecione as UFs:",
-        options=ufs_disponiveis,
-        default=ufs_disponiveis
-    )
-    if not ufs_selecionadas:
-        ufs_selecionadas = ufs_disponiveis
-        
-    # 2. Filtro de Ano
-    anos_disponiveis = sorted(df_pib["Ano"].unique())
-    ano_selecionado = st.sidebar.slider(
-        "Selecione o Ano de Referência (VAB/PIB):",
-        min_value=int(min(anos_disponiveis)),
-        max_value=int(max(anos_disponiveis)),
-        value=int(max(anos_disponiveis))
-    )
+def carregar_dados():
+    # Dados Tabulares
+    dim = pd.read_csv(CSV_DIM, sep=";", dtype={"CD_MUN": str})
+    fato = pd.read_csv(CSV_FATO, sep=";", dtype={"CD_MUN": str})
     
-    # 3. Filtro de Setor
-    setores_map = {
-        "Agropecuária": "VAB_Agropecuaria",
-        "Indústria": "VAB_Industria",
-        "Serviços": "VAB_Servicos",
-        "Adm. Pública": "VAB_Adm_Publica"
-    }
-    setor_selecionado = st.sidebar.selectbox(
-        "Setor Econômico:",
-        options=list(setores_map.keys())
-    )
-    col_setor = setores_map[setor_selecionado]
+    # Filtrar colunas duplicadas (como NM_MUN, SIGLA_UF) para evitar _x e _y no merge
+    cols_to_use = [c for c in fato.columns if c not in dim.columns] + ["CD_MUN"]
     
-    # 4. Alternador de Métrica (VAB vs Empregos)
-    metrica_selecionada = st.sidebar.radio(
-        "Métrica para Análise de Especialização (QL):",
-        options=["VAB Municipal (IBGE)", "Empregos (CEMPRE)"],
-        index=0
-    )
-else:
-    st.sidebar.error("Dados econômicos não encontrados no diretório data_clean/.")
-    ufs_selecionadas = ["SP", "MG", "RJ", "ES"]
-    ano_selecionado = 2021
-    col_setor = "VAB_Industria"
-    setor_selecionado = "Indústria"
-    metrica_selecionada = "VAB Municipal (IBGE)"
-
-# --------------------------------------------------------------------------
-# 3. FILTRAGEM DOS DADOS EM TEMPO DE EXECUÇÃO
-# --------------------------------------------------------------------------
-if df_pib is not None:
-    df_pib_filtrado = df_pib[(df_pib["SIGLA_UF"].isin(ufs_selecionadas)) & (df_pib["Ano"] == ano_selecionado)].copy()
-else:
-    df_pib_filtrado = pd.DataFrame()
-
-# --------------------------------------------------------------------------
-# 4. HEADER E TÍTULO PRINCIPAL
-# --------------------------------------------------------------------------
-st.markdown("""
-    <div class="title-container">
-        <h1 style='margin:0; font-size: 2.2rem;'>Economia Regional e Urbana do Sudeste do Brasil</h1>
-        <p style='margin:5px 0 0 0; font-size: 1.1rem; opacity: 0.95;'>
-            Análise Macroespacial, Logística e Teoria dos Modelos Clássicos de Localização
-        </p>
-    </div>
-""", unsafe_allow_html=True)
-
-# --------------------------------------------------------------------------
-# 5. CÁLCULO DE KPIs DINÂMICOS
-# --------------------------------------------------------------------------
-if not df_pib_filtrado.empty:
-    pib_total = df_pib_filtrado["PIB"].sum() * 1000 # Convertido para Reais (dados originais em mil)
-    vab_setor = df_pib_filtrado[col_setor].sum() * 1000
+    # Merge
+    df = pd.merge(dim, fato[cols_to_use], on="CD_MUN", how="left")
     
-    # Concentração IHH
-    total_setor = df_pib_filtrado[col_setor].sum()
-    if total_setor > 0:
-        participacoes = df_pib_filtrado[col_setor] / total_setor
-        ihh_val = ((participacoes * 100) ** 2).sum()
-    else:
-        ihh_val = 0
-        
-    # Empregos CEMPRE (filtrado por UFs)
-    if df_emp is not None:
-        df_emp_se = df_emp[df_emp["CD_MUN"].isin(df_pib_filtrado["CD_MUN"])].copy()
-        col_emp_setor = "Emp_" + col_setor.replace("VAB_", "")
-        emp_total = df_emp_se[col_emp_setor].sum()
-    else:
-        emp_total = 0
-        
-    # População total da área selecionada (Censo 2022 via modulo 2)
-    df_idade = carregar_demografia("idade")
-    if df_idade is not None:
-        nome_para_sigla = {"São Paulo": "SP", "Rio de Janeiro": "RJ", "Minas Gerais": "MG", "Espírito Santo": "ES"}
-        df_idade["SIGLA_UF"] = df_idade["UF"].map(nome_para_sigla)
-        pop_total = df_idade[df_idade["SIGLA_UF"].isin(ufs_selecionadas)]["Total"].sum()
-    else:
-        pop_total = 0
+    # Preencher NAs
+    for col in ["VAB_Agropecuaria", "VAB_Industria", "VAB_Servicos", "VAB_Adm_Publica", "PIB"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    
+    # Mocking Demografia (População proporcional ao PIB + Ruído) para visualização
+    np.random.seed(42)
+    df["Populacao_Estimada"] = (df["PIB"] / 50) * np.random.uniform(0.8, 1.2, len(df))
+    df["Populacao_Estimada"] = df["Populacao_Estimada"].clip(lower=1000).astype(int)
+    df["Indice_Envelhecimento"] = np.random.uniform(50, 150, len(df)).round(1)
+    
+    return df
 
-    # Renderizar KPIs
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    with kpi1:
-        st.metric(
-            label=f"PIB Acumulado ({ano_selecionado})",
-            value=f"R$ {pib_total / 1e12:.3f} Tri" if pib_total >= 1e12 else f"R$ {pib_total / 1e9:.1f} Bi"
-        )
-    with kpi2:
-        st.metric(
-            label="População Total (Censo 2022)",
-            value=f"{pop_total / 1e6:.2f} Milhões" if pop_total > 0 else "N/D"
-        )
-    with kpi3:
-        st.metric(
-            label=f"IHH Espacial ({setor_selecionado})",
-            value=f"{ihh_val:.1f}",
-            help="Índice Hirschman-Herfindahl: <1500 desconcentrado, 1500-2500 moderado, >2500 altamente concentrado."
-        )
-    with kpi4:
-        st.metric(
-            label=f"Empregos Formais ({setor_selecionado})",
-            value=f"{int(emp_total):,}".replace(",", ".") if emp_total > 0 else "N/D"
-        )
+@st.cache_data
+def carregar_geojson():
+    with open(GEOJSON_PATH, "r", encoding="utf-8") as f:
+        geojson = json.load(f)
+    return geojson
 
-st.write("")
+@st.cache_data
+def carregar_geojson_aux(nome):
+    path = os.path.join(BASE_DIR, "data_export", f"{nome}.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
 
-# --------------------------------------------------------------------------
-# 6. GUIAS DE NAVEGAÇÃO PRINCIPAL (TABS)
-# --------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
-    "👥 Demografia e Território", 
-    "📈 Vocações Econômicas & Modelos", 
-    "🚚 Logística & Meio Ambiente",
-    "🕰 Evolução Histórica & Geopolítica"
+geojson_biomas = carregar_geojson_aux("biomas_se")
+geojson_ucs = carregar_geojson_aux("ucs_se")
+geojson_rodovias = carregar_geojson_aux("rodovias_se")
+geojson_ferrovias = carregar_geojson_aux("ferrovias_se")
+geojson_potencial = carregar_geojson_aux("potencial_agricola_se")
+
+@st.cache_data
+def carregar_centroides():
+    gdf = gpd.read_file(GEOJSON_PATH)
+    # Suprimir warning temporário de cálculo de centroide em projeção geográfica
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        gdf["lat"] = gdf.geometry.centroid.y
+        gdf["lon"] = gdf.geometry.centroid.x
+    return gdf[["CD_MUN", "lat", "lon"]]
+
+# Carregar
+df = carregar_dados()
+geojson = carregar_geojson()
+centroides = carregar_centroides()
+
+# Adicionar centroides ao df
+df = pd.merge(df, centroides, on="CD_MUN", how="left")
+
+# ==============================================================================
+# CÁLCULOS ANALÍTICOS (QL e IHH)
+# ==============================================================================
+def calcular_ql(df, setor):
+    """Calcula o Quociente Locacional do município no setor especificado."""
+    # VAB do setor no município / VAB total do município
+    vab_mun_setor = df[setor]
+    vab_mun_total = df[["VAB_Agropecuaria", "VAB_Industria", "VAB_Servicos", "VAB_Adm_Publica"]].sum(axis=1)
+    weight_mun = np.where(vab_mun_total > 0, vab_mun_setor / vab_mun_total, 0)
+    
+    # VAB do setor na região / VAB total da região
+    vab_reg_setor = df[setor].sum()
+    vab_reg_total = df[["VAB_Agropecuaria", "VAB_Industria", "VAB_Servicos", "VAB_Adm_Publica"]].sum().sum()
+    weight_reg = vab_reg_setor / vab_reg_total
+    
+    # QL
+    ql = weight_mun / weight_reg
+    return ql.round(2)
+
+df["QL_Agro"] = calcular_ql(df, "VAB_Agropecuaria")
+df["QL_Ind"] = calcular_ql(df, "VAB_Industria")
+df["QL_Serv"] = calcular_ql(df, "VAB_Servicos")
+
+def calcular_ihh(df):
+    """Calcula o Índice Herfindahl-Hirschman (IHH) de concentração espacial por setor."""
+    ihh_results = {}
+    setores = {"Agropecuária": "VAB_Agropecuaria", "Indústria": "VAB_Industria", 
+               "Serviços": "VAB_Servicos", "Adm. Pública": "VAB_Adm_Publica"}
+    for name, col in setores.items():
+        total_setor = df[col].sum()
+        if total_setor > 0:
+            shares = df[col] / total_setor
+            ihh = (shares ** 2).sum() * 10000  # Escala 0-10000
+            ihh_results[name] = ihh
+    return ihh_results
+
+ihh_data = calcular_ihh(df)
+
+# ==============================================================================
+# ABAS
+# ==============================================================================
+tab1, tab2, tab3 = st.tabs([
+    "👥 Panorama Demográfico", 
+    "🗺️ Modelos Clássicos & Vocação", 
+    "📊 Concentração & Dependência"
 ])
 
-# ==========================================================================
-# TAB 1: DEMOGRAFIA E TERRITÓRIO
-# ==========================================================================
+# ------------------------------------------------------------------------------
+# ABA 1: Panorama Demográfico
+# ------------------------------------------------------------------------------
 with tab1:
-    st.header("Análise Demográfica e Ocupação do Solo")
+    st.header("Panorama Demográfico e Estrutural")
+    st.markdown("Contexto populacional e gargalos sociais da região Sudeste.")
     
-    col1_1, col1_2 = st.columns([1, 1])
+    # Filtros na parte superior da Aba 1
+    filtro_col1, filtro_col2 = st.columns(2)
+    with filtro_col1:
+        uf_filtro = st.selectbox("🌍 Filtrar por Estado (UF):", ["Todos", "SP", "MG", "RJ", "ES"])
+    with filtro_col2:
+        metrica_cor = st.radio("🎨 Métrica para colorir o mapa:", 
+                               ["População Estimada", "Índice de Envelhecimento"], 
+                               horizontal=True)
     
-    with col1_1:
-        st.subheader("Pirâmide Etária — Região Sudeste (2010 vs 2022)")
-        df_raca = carregar_demografia("raca")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("Mapa de Demografia")
         
-        if df_raca is not None:
-            # Gráfico de barras da evolução populacional por UF
-            df_se = df_raca[df_raca["UF"].isin([cfg.NOMES_UF[cfg.UFS_SUDESTE[u]] for u in ufs_selecionadas])].copy()
-            fig_pop = go.Figure()
-            fig_pop.add_trace(go.Bar(
-                x=df_se["UF"], y=df_se["Pop_Total_2010"],
-                name="2010", marker_color="#3B82F6"
-            ))
-            fig_pop.add_trace(go.Bar(
-                x=df_se["UF"], y=df_se["Pop_Total_2022"],
-                name="2022", marker_color="#EF4444"
-            ))
-            fig_pop.update_layout(
-                barmode="group",
-                plot_bgcolor="rgba(0,0,0,0)",
-                yaxis_title="População (Habitantes)",
-                legend_title="Censo",
-                margin=dict(l=40, r=40, t=20, b=40)
-            )
-            st.plotly_chart(fig_pop, use_container_width=True)
+        # Aplicar Filtro UF
+        df_mapa1 = df.copy()
+        if uf_filtro != "Todos":
+            df_mapa1 = df_mapa1[df_mapa1["SIGLA_UF"] == uf_filtro]
+            
+        # Determinar métrica e escala de cores
+        if metrica_cor == "População Estimada":
+            col_map = "Populacao_Estimada"
+            escala = "PuBu" # Azul para população
+            max_val = df_mapa1[col_map].quantile(0.95) # Recorta os top 5% (ex: SP Capital) para o degradê não ficar ofuscado
+            min_val = 0
         else:
-            st.info("Planilhas de demografia não disponíveis.")
+            col_map = "Indice_Envelhecimento"
+            escala = "OrRd" # Laranja/Vermelho para envelhecimento
+            max_val = df_mapa1[col_map].max()
+            min_val = df_mapa1[col_map].min()
             
-        # Composição Cor/Raça
-        st.subheader("Composição Étnico-Racial por UF (Censo 2022)")
-        if df_raca is not None:
-            df_se = df_raca[df_raca["UF"].isin([cfg.NOMES_UF[cfg.UFS_SUDESTE[u]] for u in ufs_selecionadas])].copy()
-            racas = ["Pop_Branca_2022", "Pop_Preta_2022", "Pop_Parda_2022", "Pop_Amarela_2022", "Pop_Indigena_2022"]
-            labels = ["Branca", "Preta", "Parda", "Amarela", "Indígena"]
-            colors = ["#FFE0B2", "#5D4037", "#8D6E63", "#FFCA28", "#D84315"]
-            
-            df_prop = df_se.set_index("UF")[racas].div(df_se.set_index("UF")[racas].sum(axis=1), axis=0) * 100
-            df_prop = df_prop.reset_index()
-            
-            fig_raca = go.Figure()
-            for raca, label, color in zip(racas, labels, colors):
-                fig_raca.add_trace(go.Bar(
-                    x=df_prop["UF"], y=df_prop[raca],
-                    name=label, marker_color=color
-                ))
-            fig_raca.update_layout(
-                barmode="stack",
-                plot_bgcolor="rgba(0,0,0,0)",
-                yaxis_title="Proporção (%)",
-                margin=dict(l=40, r=40, t=20, b=40)
-            )
-            st.plotly_chart(fig_raca, use_container_width=True)
-            
-    with col1_2:
-        st.subheader("Fragmentação Territorial e Áreas Municipais")
-        # Mostrar gráfico de fragmentação
-        # Contagem simulada/histórica do número de municípios por UF em 1970, 1991, 2022
-        dados_frag = {
-            "UF": ["MG", "ES", "RJ", "SP"],
-            "1970": [722, 53, 64, 573],
-            "1991": [756, 78, 70, 572],
-            "2022": [853, 78, 92, 645]
+        # Ajuste dinâmico de câmera
+        camera = {
+            "Todos": {"lat": -21.5, "lon": -46.0, "zoom": 5},
+            "SP": {"lat": -22.5, "lon": -48.5, "zoom": 5.8},
+            "MG": {"lat": -18.5, "lon": -44.5, "zoom": 5.5},
+            "RJ": {"lat": -22.0, "lon": -42.5, "zoom": 6.8},
+            "ES": {"lat": -19.5, "lon": -40.5, "zoom": 6.8}
         }
-        df_frag = pd.DataFrame(dados_frag)
-        df_frag = df_frag[df_frag["UF"].isin(ufs_selecionadas)].copy()
         
-        fig_frag = go.Figure()
-        fig_frag.add_trace(go.Bar(x=df_frag["UF"], y=df_frag["1970"], name="1970", marker_color="#5C6BC0"))
-        fig_frag.add_trace(go.Bar(x=df_frag["UF"], y=df_frag["1991"], name="1991", marker_color="#26A69A"))
-        fig_frag.add_trace(go.Bar(x=df_frag["UF"], y=df_frag["2022"], name="2022", marker_color="#EF5350"))
-        
-        fig_frag.update_layout(
-            barmode="group",
-            plot_bgcolor="rgba(0,0,0,0)",
-            yaxis_title="Quantidade de Municípios",
-            title_text="Fragmentação Emancipatória Pós-1988",
-            margin=dict(l=40, r=40, t=40, b=40)
+        # Criar mapa Plotly
+        fig_pop = px.choropleth_mapbox(
+            df_mapa1, 
+            geojson=geojson, 
+            locations='CD_MUN', featureidkey="properties.CD_MUN",
+            color=col_map,
+            color_continuous_scale=escala,
+            range_color=[min_val, max_val], # Ajuste crítico para o degradê ficar bonito!
+            hover_name='NM_MUN',
+            hover_data={'SIGLA_UF': True, 'Populacao_Estimada': ':,', 'Indice_Envelhecimento': True, 'CD_MUN': False},
+            mapbox_style="carto-positron",
+            zoom=camera[uf_filtro]["zoom"], 
+            center={"lat": camera[uf_filtro]["lat"], "lon": camera[uf_filtro]["lon"]},
+            opacity=0.8,
         )
-        st.plotly_chart(fig_frag, use_container_width=True)
+        fig_pop.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title=metrica_cor)
+        st.plotly_chart(fig_pop, use_container_width=True)
         
-        # População Tradicional
-        st.subheader("Populações Tradicionais (Indígenas e Quilombolas)")
-        df_trad = carregar_demografia("tradicional")
-        if df_trad is not None:
-            df_trad_se = df_trad[df_trad["UF"].isin([cfg.NOMES_UF[cfg.UFS_SUDESTE[u]] for u in ufs_selecionadas])].copy()
-            fig_trad = go.Figure()
-            fig_trad.add_trace(go.Bar(
-                x=df_trad_se["UF"], y=df_trad_se["Pop_Indigena"],
-                name="Indígena", marker_color="#8D6E63"
-            ))
-            fig_trad.add_trace(go.Bar(
-                x=df_trad_se["UF"], y=df_trad_se["Pop_Quilombola"],
-                name="Quilombola", marker_color="#5D4037"
-            ))
-            fig_trad.update_layout(
-                barmode="group",
-                plot_bgcolor="rgba(0,0,0,0)",
-                yaxis_title="População (Habitantes)",
-                margin=dict(l=40, r=40, t=20, b=40)
-            )
-            st.plotly_chart(fig_trad, use_container_width=True)
-
-# ==========================================================================
-# TAB 2: ECONOMIC ACTIVITY & CLASSICAL MODELS
-# ==========================================================================
-with tab2:
-    st.header("Estrutura Produtiva e Vocações Regionais")
-    
-    if df_pib_filtrado.empty:
-        st.warning("Selecione filtros válidos para calcular o Quociente Locacional.")
-    else:
-        # Calcular QL em tempo real
-        df_ql = df_pib_filtrado.copy()
-        setores = ["VAB_Agropecuaria", "VAB_Industria", "VAB_Servicos", "VAB_Adm_Publica"]
-        df_ql["VAB_Total"] = df_ql[setores].sum(axis=1)
-        
-        totais_regiao = {s: df_ql[s].sum() for s in setores}
-        vab_total_regiao = df_ql["VAB_Total"].sum()
-        
-        for s in setores:
-            part_mun = df_ql[s] / df_ql["VAB_Total"]
-            part_reg = totais_regiao[s] / vab_total_regiao
-            df_ql[f"QL_{s}"] = (part_mun / part_reg).replace([np.inf, -np.inf], np.nan).fillna(0).round(4)
-            
-        # Determinar especialização
-        df_ql["Setor_Dominante"] = df_ql[setores].idxmax(axis=1)
-        df_ql["Setor_Dominante"] = df_ql["Setor_Dominante"].map({
-            "VAB_Agropecuaria": "Agropecuária",
-            "VAB_Industria": "Indústria",
-            "VAB_Servicos": "Serviços",
-            "VAB_Adm_Publica": "Adm. Pública"
+    with col2:
+        st.subheader("Perfil Histórico (Simulação)")
+        # Gráfico fictício de Raça/Cor simulando dados do IBGE
+        mock_raca = pd.DataFrame({
+            "UF": ["SP", "MG", "RJ", "ES"],
+            "Branca": [60, 45, 42, 48],
+            "Parda": [30, 45, 42, 42],
+            "Preta": [8, 9, 15, 9]
         })
         
-        col2_1, col2_2 = st.columns([1.2, 0.8])
-        
-        with col2_1:
-            st.subheader("Mapa Coroplético de Especialização Regional")
+        if uf_filtro != "Todos":
+            mock_raca = mock_raca[mock_raca["UF"] == uf_filtro]
             
-            # Unir dados ao GeoDataFrame
-            if gdf_mun is not None:
-                # Filtrar os dados QL que serão plotados
-                df_plot = df_ql[df_ql["Setor_Dominante"].notna()].copy()
-                
-                # Obter o GeoJSON completo e pré-carregado com cache
-                geojson_dict = obter_geojson_sudeste()
-                
-                fig_mapa_econ = px.choropleth(
-                    df_plot,
-                    geojson=geojson_dict,
+        fig_raca = px.bar(
+            mock_raca, x="UF", y=["Branca", "Parda", "Preta"],
+            title="Distribuição Cor/Raça por UF",
+            barmode="stack",
+            color_discrete_map={"Branca": "#E0E0E0", "Parda": "#A67C52", "Preta": "#333333"}
+        )
+        st.plotly_chart(fig_raca, use_container_width=True)
+        st.caption("*Nota: Dados demográficos nesta aba são representações simuladas para protótipo. O ETL das planilhas do SIDRA está planejado.*")
+
+# ------------------------------------------------------------------------------
+# ABA 2: Modelos Clássicos & Vocação
+# ------------------------------------------------------------------------------
+with tab2:
+    st.header("Modelos Clássicos e Vocação Econômica")
+    st.markdown("Como a teoria espacial (Von Thünen, Weber, Christaller) acontece na prática.")
+    
+    col_mapa1, col_mapa2 = st.columns(2)
+    
+    with col_mapa1:
+        st.subheader("Vocação Econômica Municipal")
+        st.markdown("O contraste entre a Administração Pública no interior e Serviços no litoral.")
+        
+        cores_setor = {
+            "Serviços": "#1F77B4", 
+            "Adm. Pública": "#9467BD", 
+            "Agropecuária": "#2CA02C", 
+            "Indústria": "#FF7F0E", 
+            "Sem dados": "#D9D9D9"
+        }
+        
+        fig_vocacao = px.choropleth_mapbox(
+            df, geojson=geojson, locations='CD_MUN', featureidkey="properties.CD_MUN",
+            color='Setor_Dominante', color_discrete_map=cores_setor,
+            hover_name='NM_MUN', hover_data={'SIGLA_UF': True, 'Setor_Dominante': True, 'CD_MUN': False},
+            mapbox_style="carto-positron", zoom=5, center={"lat": -21.5, "lon": -46.0}, opacity=0.8
+        )
+        fig_vocacao.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend_title_text="Setor Dominante")
+        st.plotly_chart(fig_vocacao, use_container_width=True)
+        
+    with col_mapa2:
+        st.subheader("Mapa Interativo de Modelos Espaciais")
+        
+        # Filtro com botões
+        modelo_selecionado = st.radio(
+            "Selecione o Modelo Espacial para visualizar:",
+            ("Agropecuária (Von Thünen)", "Indústria (Weber)", "Serviços (Christaller)"),
+            horizontal=True
+        )
+        
+        if "Agro" in modelo_selecionado:
+            aba_vab, aba_potencial, aba_restricoes = st.tabs(["💰 VAB Agropecuário", "🌱 Potencialidade Agrícola", "🌳 Biomas e Restrições"])
+            
+            with aba_vab:
+                st.markdown("**VAB Agropecuário (Mil R$) por Município**")
+                fig_vab = px.choropleth_mapbox(
+                    df,
+                    geojson=geojson,
                     locations="CD_MUN",
                     featureidkey="properties.CD_MUN",
-                    color="Setor_Dominante",
-                    color_discrete_map={
-                        "Agropecuária": "#4CAF50",
-                        "Indústria": "#FF5722",
-                        "Serviços": "#2196F3",
-                        "Adm. Pública": "#9C27B0"
-                    },
+                    color="VAB_Agropecuaria",
+                    color_continuous_scale="YlGn",
+                    mapbox_style="carto-positron",
+                    zoom=5,
+                    center={"lat": -20.0, "lon": -45.0},
+                    opacity=0.8,
                     hover_name="NM_MUN",
-                    hover_data={col_setor: ":.0f", f"QL_{col_setor}": ":.2f", "PIB": ":.0f"},
-                    labels={"Setor_Dominante": "Vocação"},
+                    hover_data={"SIGLA_UF": True, "VAB_Agropecuaria": ":,.0f", "CD_MUN": False}
                 )
+                fig_vab.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Agropecuário")
+                st.plotly_chart(fig_vab, use_container_width=True)
                 
-                fig_mapa_econ.update_geos(
-                    fitbounds="locations",
-                    visible=False
-                )
-                fig_mapa_econ.update_layout(
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    height=500,
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
-                st.plotly_chart(fig_mapa_econ, use_container_width=True)
-            else:
-                st.info("Shapefile de municípios não encontrado para renderização do mapa.")
+            with aba_potencial:
+                st.markdown("**Aptidão Agrícola das Terras**")
+                fig_pot = go.Figure()
+                fig_pot.update_layout(mapbox=dict(style="carto-positron", zoom=5, center=dict(lat=-20.0, lon=-45.0)))
+                layers_pot = []
                 
-        with col2_2:
-            st.subheader(f"Especialização: Quociente Locacional (QL - {setor_selecionado})")
-            st.write("Um **QL > 1** (área verde) indica que o município possui uma especialização maior que a média do Sudeste para o setor selecionado.")
-            
-            # Heatmap do QL para os top 20 municípios por PIB
-            top20 = df_ql.nlargest(20, "PIB").copy()
-            cols_ql = [f"QL_{s}" for s in setores]
-            top20_ql = top20.set_index("NM_MUN")[cols_ql]
-            top20_ql.columns = ["Agropecuária", "Indústria", "Serviços", "Adm. Pública"]
-            
-            fig_heatmap = px.imshow(
-                top20_ql,
-                labels=dict(x="Setores", y="Municípios", color="QL"),
-                color_continuous_scale="RdYlGn",
-                color_continuous_midpoint=1.0,
-                aspect="auto"
-            )
-            fig_heatmap.update_layout(
-                margin=dict(l=20, r=20, t=20, b=20),
-                height=450
-            )
-            st.plotly_chart(fig_heatmap, use_container_width=True)
-
-        st.markdown("---")
-        st.subheader("Modelos Espaciais Clássicos à Luz dos Dados Atuais")
-        
-        m1, m2, m3 = st.columns(3)
-        
-        with m1:
-            st.markdown("### 🌾 Von Thünen (Agropecuária)")
-            st.markdown(
-                "O modelo prevê que culturas intensivas ficam próximas ao mercado e extensivas nas periferias. "
-                "São Paulo (capital) funciona como o maior mercado do Sudeste."
-            )
-            # Calcular distância aproximada dos centroids dos municípios a SP (coordenadas SP: -23.55, -46.63)
-            # Apenas ilustrativo com Plotly scatter plot (VAB Agro vs Distância)
-            if gdf_mun is not None:
-                gdf_mun_sp = gdf_mun.copy()
-                centroids = gdf_mun_sp.geometry.centroid
-                gdf_mun_sp["dist_sp"] = np.sqrt((centroids.x - (-46.63))**2 + (centroids.y - (-23.55))**2) * 111.12 # Km aproximado
-                df_thunen = df_ql.merge(gdf_mun_sp[["CD_MUN", "dist_sp"]], on="CD_MUN", how="inner")
-                
-                fig_thunen = px.scatter(
-                    df_thunen, x="dist_sp", y="VAB_Agropecuaria",
-                    trendline="ols", log_y=True,
-                    labels={"dist_sp": "Distância de São Paulo (km)", "VAB_Agropecuaria": "VAB Agropecuária (Log)"},
-                    hover_name="NM_MUN"
-                )
-                fig_thunen.update_layout(plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=10, b=20), height=280)
-                st.plotly_chart(fig_thunen, use_container_width=True)
-                st.caption("Correlação negativa: quanto mais distante do polo consumidor central (SP), menor a concentração do valor agrícola agregado por área.")
-
-        with m2:
-            st.markdown("### 🏭 Weber (Indústria & Logística)")
-            st.markdown(
-                "A localização industrial ótima busca minimizar os custos de frete e transporte. "
-                "No Sudeste, a atividade industrial concentra-se densamente nos eixos estruturantes (ex: Rodovia Presidente Dutra SP-RJ)."
-            )
-            # Barras do IHH setorial
-            ihh_setores = {}
-            for s in setores:
-                t_setor = df_ql[s].sum()
-                if t_setor > 0:
-                    ihh_setores[s.replace("VAB_", "")] = ((df_ql[s] / t_setor * 100)**2).sum()
+                if geojson_potencial:
+                    cores_pot = {
+                        "A1": "rgba(0, 100, 0, 0.6)",      # Verde escuro
+                        "A2": "rgba(144, 238, 144, 0.6)",  # Verde claro
+                        "B": "rgba(255, 255, 0, 0.6)",     # Amarelo
+                        "C": "rgba(255, 165, 0, 0.6)",     # Laranja
+                        "D": "rgba(255, 0, 0, 0.6)"        # Vermelho
+                    }
                     
-            df_ihh_plot = pd.DataFrame({
-                "Setor": list(ihh_setores.keys()),
-                "IHH": list(ihh_setores.values())
-            })
-            fig_ihh = px.bar(
-                df_ihh_plot, x="Setor", y="IHH",
-                color="Setor",
-                color_discrete_map={"Agropecuaria": "#4CAF50", "Industria": "#FF5722", "Servicos": "#2196F3", "Adm_Publica": "#9C27B0"},
-                labels={"Setor": "Setor", "IHH": "Índice IHH"},
-            )
-            fig_ihh.update_layout(plot_bgcolor="rgba(0,0,0,0)", showlegend=False, margin=dict(l=20, r=20, t=10, b=20), height=280)
-            st.plotly_chart(fig_ihh, use_container_width=True)
-            st.caption("IHH Industrial alto indica forte concentração geográfica da produção nas zonas centrais e de corredor de transporte ( Weber).")
+                    features_by_cat = {k: [] for k in cores_pot.keys()}
+                    for f in geojson_potencial.get("features", []):
+                        cat = f.get("properties", {}).get("potenc_f")
+                        if cat in features_by_cat:
+                            features_by_cat[cat].append(f)
+                            
+                    for cat, feats in features_by_cat.items():
+                        if feats:
+                            layer_geojson = {"type": "FeatureCollection", "features": feats}
+                            layers_pot.append({"source": layer_geojson, "type": "fill", "color": cores_pot[cat]})
+                    
+                    fig_pot.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color="rgba(0, 100, 0, 0.8)", size=12), name="Classe A1 (Muito Alto)"))
+                    fig_pot.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color="rgba(144, 238, 144, 0.8)", size=12), name="Classe A2 (Alto)"))
+                    fig_pot.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color="rgba(255, 255, 0, 0.8)", size=12), name="Classe B (Médio)"))
+                    fig_pot.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color="rgba(255, 165, 0, 0.8)", size=12), name="Classe C (Baixo)"))
+                    fig_pot.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color="rgba(255, 0, 0, 0.8)", size=12), name="Classe D (Muito Baixo)"))
 
-        with m3:
-            st.markdown("### 🏛 Christaller (Lugares Centrais)")
-            st.markdown(
-                "Centros urbanos hierarquizam-se conforme o alcance de seus bens e serviços. "
-                "Metrópoles (SP, RJ, BH) no topo, oferecendo serviços de alta complexidade e centralidade."
+                fig_pot.update_layout(
+                    mapbox_layers=layers_pot, margin={"r":0,"t":0,"l":0,"b":0},
+                    legend=dict(yanchor="bottom", y=0.05, xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.9)", font=dict(color="black"))
+                )
+                st.plotly_chart(fig_pot, use_container_width=True)
+ 
+            with aba_restricoes:
+                st.markdown("**Limites de Biomas e Unidades de Conservação**")
+                fig_rest = go.Figure()
+                fig_rest.update_layout(mapbox=dict(style="carto-positron", zoom=5, center=dict(lat=-20.0, lon=-45.0)))
+                layers_rest = []
+                
+                if geojson_ucs:
+                    layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(0, 100, 0, 0.8)", "line": {"width": 1.5}})
+                    fig_rest.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(0, 100, 0, 0.8)", width=1.5), name="Unidades de Conservação"))
+                
+                if geojson_biomas:
+                    cores_biomas = {
+                        "Caatinga": "rgba(230, 194, 135, 0.6)",      # Amarelado seco (Caatinga)
+                        "Cerrado": "rgba(189, 149, 116, 0.6)",       # Marrom claro (Cerrado)
+                        "Mata Atlântica": "rgba(102, 187, 106, 0.6)" # Verde vibrante (Mata Atlântica)
+                    }
+                    features_by_bioma = {k: [] for k in cores_biomas.keys()}
+                    
+                    for f in geojson_biomas.get("features", []):
+                        bioma = f.get("properties", {}).get("NM_BIOMA")
+                        if bioma in features_by_bioma:
+                            features_by_bioma[bioma].append(f)
+                            
+                    for bioma, feats in features_by_bioma.items():
+                        if feats:
+                            layer_geojson = {"type": "FeatureCollection", "features": feats}
+                            layers_rest.insert(0, {"source": layer_geojson, "type": "fill", "color": cores_biomas[bioma]})
+                            fig_rest.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color=cores_biomas[bioma].replace("0.6", "0.9"), size=12), name=bioma))
+                    
+                    
+                fig_rest.update_layout(
+                    mapbox_layers=layers_rest, margin={"r":0,"t":0,"l":0,"b":0},
+                    legend=dict(yanchor="bottom", y=0.05, xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.9)", font=dict(color="black"))
+                )
+                st.plotly_chart(fig_rest, use_container_width=True)
+ 
+        elif "Indústria" in modelo_selecionado:
+            aba_ind1, aba_ind2 = st.tabs(["🏭 VAB Indústria", "🛤️ Infraestrutura Logística"])
+            with aba_ind1:
+                fig_ind = px.choropleth_mapbox(
+                    df,
+                    geojson=geojson,
+                    locations="CD_MUN",
+                    featureidkey="properties.CD_MUN",
+                    color="VAB_Industria",
+                    color_continuous_scale="Reds",
+                    mapbox_style="carto-positron",
+                    zoom=5,
+                    center={"lat": -20.0, "lon": -45.0},
+                    opacity=0.8,
+                    hover_name="NM_MUN",
+                    hover_data={"SIGLA_UF": True, "VAB_Industria": ":,.0f", "CD_MUN": False}
+                )
+                fig_ind.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Indústria")
+                st.plotly_chart(fig_ind, use_container_width=True)
+                
+            with aba_ind2:
+                fig_log = go.Figure()
+                fig_log.update_layout(mapbox=dict(style="carto-positron", zoom=5, center=dict(lat=-20.0, lon=-45.0)))
+                layers_log = []
+                if geojson_rodovias:
+                    layers_log.append({"source": geojson_rodovias, "type": "line", "color": "rgba(200, 0, 0, 0.6)", "line": {"width": 1.5}})
+                    fig_log.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(200, 0, 0, 0.6)", width=2), name="Rodovias (BRs)"))
+                if geojson_ferrovias:
+                    layers_log.append({"source": geojson_ferrovias, "type": "line", "color": "rgba(0, 0, 0, 0.8)", "line": {"width": 2}})
+                    fig_log.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(0, 0, 0, 0.8)", width=2), name="Ferrovias"))
+                
+                fig_log.update_layout(
+                    mapbox_layers=layers_log, margin={"r":0,"t":0,"l":0,"b":0},
+                    legend=dict(yanchor="bottom", y=0.05, xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.9)", font=dict(color="black"))
+                )
+                st.plotly_chart(fig_log, use_container_width=True)
+ 
+        elif "Serviços" in modelo_selecionado:
+            fig_serv = px.choropleth_mapbox(
+                df,
+                geojson=geojson,
+                locations="CD_MUN",
+                featureidkey="properties.CD_MUN",
+                color="VAB_Servicos",
+                color_continuous_scale="Blues",
+                mapbox_style="carto-positron",
+                zoom=5,
+                center={"lat": -20.0, "lon": -45.0},
+                opacity=0.8,
+                hover_name="NM_MUN",
+                hover_data={"SIGLA_UF": True, "VAB_Servicos": ":,.0f", "CD_MUN": False}
             )
-            # Top 10 cidades por VAB de Serviços (Lugares Centrais de maior ordem)
-            top10_serv = df_ql.nlargest(10, "VAB_Servicos")
-            fig_chris = px.bar(
-                top10_serv, x="NM_MUN", y="VAB_Servicos",
-                color="SIGLA_UF",
-                color_discrete_map={"SP": "#E91E63", "MG": "#2196F3", "RJ": "#FF9800", "ES": "#4CAF50"},
-                labels={"NM_MUN": "Lugar Central", "VAB_Servicos": "VAB de Serviços"},
-            )
-            fig_chris.update_layout(plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=10, b=20), height=280)
-            st.plotly_chart(fig_chris, use_container_width=True)
-            st.caption("Hierarquização clara do VAB de Serviços, caracterizando as capitais estaduais como polos globais da rede urbana.")
-
-# ==========================================================================
-# TAB 3: LOGÍSTICA E MEIO AMBIENTE
-# ==========================================================================
+            fig_serv.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Serviços")
+            st.plotly_chart(fig_serv, use_container_width=True)
+ 
+# ------------------------------------------------------------------------------
+# ABA 3: Concentração & Dependência
+# ------------------------------------------------------------------------------
 with tab3:
-    st.header("Infraestrutura de Transporte e Cobertura Natural")
+    st.header("Concentração e Dependência Especial")
+    st.markdown("Métricas analíticas espaciais: Quociente Locacional (QL) e IHH.")
     
-    st.write(
-        "Esta seção sobrepõe as malhas estruturantes de transporte do Sudeste (rodovias, ferrovias, portos e aeroportos) "
-        "com a distribuição natural dos biomas (Cerrado, Mata Atlântica) e Unidades de Conservação."
+    st.subheader("Matriz de Quociente Locacional (QL)")
+    st.markdown("Cidades com QL > 1 são especializadas naquele setor em relação à região Sudeste.")
+    
+    # Preparar dados para o Heatmap (Top 30 cidades por PIB para visualização)
+    df_top_ql = df.nlargest(30, "PIB").set_index("NM_MUN")[["QL_Agro", "QL_Ind", "QL_Serv"]]
+    
+    fig_heatmap = px.imshow(
+        df_top_ql.T, 
+        color_continuous_scale="RdYlGn", 
+        color_continuous_midpoint=1.0,
+        aspect="auto",
+        title="Heatmap QL Setorial (Top 30 Cidades por PIB)"
     )
+    st.plotly_chart(fig_heatmap, use_container_width=True)
     
-    # Criar mapa interativo Folium
-    col3_1, col3_2 = st.columns([1.5, 0.5])
+    col_ihh, col_cempre = st.columns(2)
     
-    with col3_2:
-        st.subheader("Controle de Camadas")
-        st.markdown("Selecione quais infraestruturas e biomas deseja plotar sobre o mapa básico do Sudeste:")
+    with col_ihh:
+        st.subheader("Concentração Espacial (IHH)")
+        st.markdown("Valores maiores indicam que o setor está concentrado em poucos municípios.")
         
-        # Checkboxes de camadas
-        show_rodovias = st.checkbox("Rodovias Estruturantes", value=True)
-        show_ferrovias = st.checkbox("Ferrovias", value=True)
-        show_ucs = st.checkbox("Unidades de Conservação", value=False)
-        show_biomas = st.checkbox("Biomas (Fundo)", value=False)
-        show_portos = st.checkbox("Portos & Aeroportos", value=True)
-        
-    with col3_1:
-        # Gerar o mapa Folium
-        m = folium.Map(location=[-21.5, -45.0], zoom_start=6, tiles="cartodbpositron")
-        
-        # 1. Plotar biomas (se selecionado)
-        if show_biomas:
-            gdf_biomas = carregar_camada_gpkg("biomas")
-            if gdf_biomas is not None:
-                # Filtrar feições vazias
-                gdf_biomas = gdf_biomas[gdf_biomas.geometry.notna()].copy()
-                colors_bioma = {"Cerrado": "#8B4513", "Mata Atlântica": "#228B22", "Caatinga": "#DAA520"}
-                for idx, row in gdf_biomas.iterrows():
-                    b_nome = row.get("nom_bioma", row.get("bioma", ""))
-                    cor = "#CCCCCC"
-                    for k, v in colors_bioma.items():
-                        if k.lower() in str(b_nome).lower():
-                            cor = v
-                    folium.GeoJson(
-                        row.geometry,
-                        style_function=lambda x, cor=cor: {"fillColor": cor, "color": cor, "weight": 0.5, "fillOpacity": 0.15}
-                    ).add_to(m)
-                    
-        # 2. Plotar UCs
-        if show_ucs:
-            geo_ucs = obter_geo_interface("ucs")
-            if geo_ucs is not None:
-                folium.GeoJson(
-                    geo_ucs,
-                    name="Unidades de Conservação",
-                    style_function=lambda x: {"fillColor": "#2E7D32", "color": "#1B5E20", "weight": 0.8, "fillOpacity": 0.4}
-                ).add_to(m)
-                
-        # 3. Plotar Rodovias
-        if show_rodovias:
-            geo_rods = obter_geo_interface("rodovias")
-            if geo_rods is not None:
-                folium.GeoJson(
-                    geo_rods,
-                    name="Rodovias",
-                    style_function=lambda x: {"color": "#D32F2F", "weight": 1.2, "opacity": 0.8}
-                ).add_to(m)
-                
-        # 4. Plotar Ferrovias
-        if show_ferrovias:
-            geo_ferrs = obter_geo_interface("ferrovias")
-            if geo_ferrs is not None:
-                folium.GeoJson(
-                    geo_ferrs,
-                    name="Ferrovias",
-                    style_function=lambda x: {"color": "#212121", "weight": 1.5, "dashArray": "5, 5", "opacity": 0.9}
-                ).add_to(m)
-                
-        # 5. Plotar Portos e Aeroportos
-        if show_portos:
-            gdf_aeros = carregar_camada_gpkg("aeroportos")
-            gdf_portos = carregar_camada_gpkg("portos")
-            
-            if gdf_aeros is not None:
-                for idx, row in gdf_aeros.iterrows():
-                    geom = row.geometry
-                    if geom.geom_type == 'Point':
-                        folium.Marker(
-                            location=[geom.y, geom.x],
-                            icon=folium.Icon(color="red", icon="plane", prefix="fa"),
-                            popup=f"Aeroporto: {row.get('nome', 'N/D')}"
-                        ).add_to(m)
-                        
-            if gdf_portos is not None:
-                for idx, row in gdf_portos.iterrows():
-                    geom = row.geometry
-                    if geom.geom_type == 'Point':
-                        folium.Marker(
-                            location=[geom.y, geom.x],
-                            icon=folium.Icon(color="blue", icon="anchor", prefix="fa"),
-                            popup=f"Porto: {row.get('nome', 'N/D')}"
-                        ).add_to(m)
-                        
-        # Renderizar mapa no Streamlit
-        folium_static(m, width=800, height=550)
-
-# ==========================================================================
-# TAB 4: EVOLUÇÃO HISTÓRICA & GEOPOLÍTICA
-# ==========================================================================
-with tab4:
-    st.header("Evolução Histórico-Territorial e Path Dependence")
-    
-    col4_1, col4_2 = st.columns([1, 1])
-    
-    with col4_1:
-        st.subheader("Divisões Regionais Oficiais do Brasil (Evolução IBGE)")
-        st.markdown(
-            "Veja como os estados do Sudeste pertenciam a regiões separadas na geopolítica nacional de outrora. "
-            "A unificação sob a região 'Sudeste' só se consolidou na divisão de **1969**."
+        ihh_df = pd.DataFrame(list(ihh_data.items()), columns=["Setor", "IHH"])
+        fig_ihh = px.bar(
+            ihh_df, x="Setor", y="IHH", color="Setor",
+            color_discrete_map={"Serviços": "#1F77B4", "Adm. Pública": "#9467BD", 
+                                "Agropecuária": "#2CA02C", "Indústria": "#FF7F0E"},
+            title="Índice Herfindahl-Hirschman (0 a 10.000)"
         )
+        st.plotly_chart(fig_ihh, use_container_width=True)
         
-        hist_div = st.selectbox(
-            "Selecione o Ano da Divisão Regional Histórica:",
-            options=["1913 (Delgado de Carvalho)", "1938 (Anuário Estatístico)", "1942 (1ª Oficial IBGE)", "1969 (Atual IBGE)"]
+    with col_cempre:
+        st.subheader("Demografia Empresarial (CEMPRE)")
+        st.markdown("Total de empresas por estado e setor.")
+        
+        # Mock de empresas baseado em proporções reais
+        mock_cempre = pd.DataFrame({
+            "UF": ["SP", "MG", "RJ", "ES"],
+            "Serviços": [1500000, 450000, 380000, 120000],
+            "Indústria": [300000, 120000, 50000, 30000],
+            "Agropecuária": [50000, 80000, 10000, 15000]
+        })
+        fig_cempre = px.bar(
+            mock_cempre.melt(id_vars="UF", var_name="Setor", value_name="Qtd_Empresas"),
+            x="UF", y="Qtd_Empresas", color="Setor", barmode="group",
+            color_discrete_map={"Serviços": "#1F77B4", "Indústria": "#FF7F0E", "Agropecuária": "#2CA02C"},
+            title="Quantidade de Empresas Ativas (Simulação)"
         )
-        
-        # Mostrar imagem de mapa de evolução de acordo com a seleção
-        if "1913" in hist_div:
-            st.info("💡 Divisão de 1913: São Paulo pertencia à região 'Meridional', enquanto Minas, Rio e Espírito Santo pertenciam ao 'Oriental'.")
-        elif "1938" in hist_div:
-            st.info("💡 Divisão de 1938: Minas no 'Centro', Espírito Santo no 'Este', e São Paulo/Rio no 'Sul'.")
-        elif "1942" in hist_div:
-            st.info("💡 Divisão de 1942: Minas, Rio e Espírito Santo eram o 'Leste Meridional' e São Paulo pertencia ao 'Sul'.")
-        else:
-            st.info("💡 Divisão de 1969: Pela primeira vez, os quatro estados se unem formalmente na atual Região Sudeste.")
-            
-        st.image("output/modulo5/mapa_evolucao_historica.png", caption="Evolução Oficial das Divisões Regionais do Brasil")
-        
-    with col4_2:
-        st.subheader("Path Dependence: Herança Colonial vs VAB Atual")
-        st.markdown(
-            "Esta visualização comprova como a especialização econômica contemporânea está enraizada nos "
-            "ciclos produtivos coloniais e na infraestrutura herdada (ex: ferrovias do Ciclo do Café)."
-        )
-        
-        df_hist_parquet = carregar_demografia("hist")
-        if df_hist_parquet is not None:
-            # Gráfico de barras da composição setorial atual herdada
-            st.dataframe(df_hist_parquet.set_index("UF"))
-        else:
-            st.info("Tabela de herança histórica não encontrada.")
-            
-        st.image("output/modulo5/grafico_path_dependence.png", caption="Cruze Histórico: Ciclo Colonial vs VAB Setorial Atual")
-
-# --------------------------------------------------------------------------
-# RODAPÉ
-# --------------------------------------------------------------------------
-st.markdown("---")
-st.markdown(
-    "<p style='text-align: center; color: #6C757D; font-size: 0.8rem;'>"
-    "Dashboard desenvolvido para a disciplina de Economia Regional e Urbana | "
-    "Dados: IBGE Censo 2022, PAM, PIA, PAS, CEMPRE (2010-2023)"
-    "</p>",
-    unsafe_allow_html=True
-)
+        st.plotly_chart(fig_cempre, use_container_width=True)
+        st.caption("*Nota: Dados de empresas (CEMPRE) são representações simuladas. Integração pendente.*")
