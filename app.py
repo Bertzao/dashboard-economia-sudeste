@@ -335,15 +335,16 @@ with tab2:
                 fig_rest.update_layout(mapbox=dict(style="carto-positron", zoom=5, center=dict(lat=-20.0, lon=-45.0)))
                 layers_rest = []
                 
-                if geojson_ucs:
-                    layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(0, 100, 0, 0.8)", "line": {"width": 1.5}})
-                    fig_rest.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(0, 100, 0, 0.8)", width=1.5), name="Unidades de Conservação"))
-                
                 if geojson_biomas:
                     cores_biomas = {
-                        "Caatinga": "rgba(230, 194, 135, 0.6)",      # Amarelado seco (Caatinga)
-                        "Cerrado": "rgba(189, 149, 116, 0.6)",       # Marrom claro (Cerrado)
-                        "Mata Atlântica": "rgba(102, 187, 106, 0.6)" # Verde vibrante (Mata Atlântica)
+                        "Mata Atlântica": "rgba(0, 170, 160, 0.50)",   # Teal/verde-azulado vibrante
+                        "Cerrado": "rgba(194, 140, 80, 0.50)",        # Marrom dourado
+                        "Caatinga": "rgba(230, 200, 90, 0.50)",        # Amarelo quente
+                    }
+                    cores_legenda = {
+                        "Mata Atlântica": "rgba(0, 170, 160, 0.9)",
+                        "Cerrado": "rgba(194, 140, 80, 0.9)",
+                        "Caatinga": "rgba(230, 200, 90, 0.9)",
                     }
                     features_by_bioma = {k: [] for k in cores_biomas.keys()}
                     
@@ -355,9 +356,13 @@ with tab2:
                     for bioma, feats in features_by_bioma.items():
                         if feats:
                             layer_geojson = {"type": "FeatureCollection", "features": feats}
-                            layers_rest.insert(0, {"source": layer_geojson, "type": "fill", "color": cores_biomas[bioma]})
-                            fig_rest.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color=cores_biomas[bioma].replace("0.6", "0.9"), size=12), name=bioma))
-                    
+                            layers_rest.append({"source": layer_geojson, "type": "fill", "color": cores_biomas[bioma]})
+                            fig_rest.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="markers", marker=dict(color=cores_legenda[bioma], size=12), name=bioma))
+
+                # UCs por cima dos biomas como bordas finas (laranja para não confundir com biomas)
+                if geojson_ucs:
+                    layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(255, 100, 0, 0.85)", "line": {"width": 1.5}})
+                    fig_rest.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(255, 100, 0, 0.85)", width=1.5), name="Unidades de Conservação"))
                     
                 fig_rest.update_layout(
                     mapbox_layers=layers_rest, margin={"r":0,"t":0,"l":0,"b":0},
