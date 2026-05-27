@@ -414,7 +414,7 @@ with tab2:
                 
                 # Hidrovias (rios navegáveis) — linhas azuis tracejadas
                 if geojson_hidrovias:
-                    layers_log.append({"source": geojson_hidrovias, "type": "line", "color": "rgba(30, 136, 229, 0.6)", "line": {"width": 1.8, "dasharray": [4, 2]}})
+                    layers_log.append({"source": geojson_hidrovias, "type": "line", "color": "rgba(30, 136, 229, 0.6)", "line": {"width": 1.8}})
                     fig_log.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode="lines", line=dict(color="rgba(30, 136, 229, 0.7)", width=2), name="Hidrovias"))
                 
                 # Rodovias — linhas vermelhas
