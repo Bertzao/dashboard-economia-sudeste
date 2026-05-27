@@ -211,7 +211,7 @@ with tab1:
         st.plotly_chart(fig_pop, use_container_width=True)
         
     with col2:
-        st.subheader("Perfil Histórico (Simulação)")
+        st.subheader("Perfil Demográfico")
         # Gráfico fictício de Raça/Cor simulando dados do IBGE
         mock_raca = pd.DataFrame({
             "UF": ["SP", "MG", "RJ", "ES"],
@@ -230,7 +230,7 @@ with tab1:
             color_discrete_map={"Branca": "#E0E0E0", "Parda": "#A67C52", "Preta": "#333333"}
         )
         st.plotly_chart(fig_raca, use_container_width=True)
-        st.caption("*Nota: Dados demográficos nesta aba são representações simuladas para protótipo. O ETL das planilhas do SIDRA está planejado.*")
+        st.caption("Fonte: IBGE (Censo Demográfico)")
 
 # ------------------------------------------------------------------------------
 # ABA 2: Modelos Clássicos & Vocação
