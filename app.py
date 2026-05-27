@@ -277,6 +277,7 @@ with tab2:
             
             with aba_vab:
                 st.markdown("**VAB Agropecuário (Mil R$) por Município**")
+                vab_agro_max = df["VAB_Agropecuaria"].quantile(0.95)
                 fig_vab = px.choropleth_mapbox(
                     df,
                     geojson=geojson,
@@ -284,6 +285,7 @@ with tab2:
                     featureidkey="properties.CD_MUN",
                     color="VAB_Agropecuaria",
                     color_continuous_scale="YlGn",
+                    range_color=[0, vab_agro_max],
                     mapbox_style="carto-positron",
                     zoom=5,
                     center={"lat": -20.0, "lon": -45.0},
@@ -390,6 +392,7 @@ with tab2:
         elif "Indústria" in modelo_selecionado:
             aba_ind1, aba_ind2 = st.tabs(["🏭 VAB Indústria", "🛤️ Infraestrutura Logística"])
             with aba_ind1:
+                vab_ind_max = df["VAB_Industria"].quantile(0.95)
                 fig_ind = px.choropleth_mapbox(
                     df,
                     geojson=geojson,
@@ -397,6 +400,7 @@ with tab2:
                     featureidkey="properties.CD_MUN",
                     color="VAB_Industria",
                     color_continuous_scale="Reds",
+                    range_color=[0, vab_ind_max],
                     mapbox_style="carto-positron",
                     zoom=5,
                     center={"lat": -20.0, "lon": -45.0},
@@ -468,6 +472,7 @@ with tab2:
                 st.plotly_chart(fig_log, use_container_width=True)
  
         elif "Serviços" in modelo_selecionado:
+            vab_serv_max = df["VAB_Servicos"].quantile(0.95)
             fig_serv = px.choropleth_mapbox(
                 df,
                 geojson=geojson,
@@ -475,6 +480,7 @@ with tab2:
                 featureidkey="properties.CD_MUN",
                 color="VAB_Servicos",
                 color_continuous_scale="Blues",
+                range_color=[0, vab_serv_max],
                 mapbox_style="carto-positron",
                 zoom=5,
                 center={"lat": -20.0, "lon": -45.0},
