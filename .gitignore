@@ -1,0 +1,33 @@
+# Cache e Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+.gemini.code-workspace
+
+# Pastas de dados brutos / originais (muito pesadas para o GitHub)
+Atividade\ Econômica/
+Infra/
+Uso\ da\ terra/
+populaçao/
+municipios\ e\ UF\ \+\ população/
+mapas\ historicos/
+_backup_antes_limpeza/
+data_export/
+
+# Ignorar arquivos gerados na pasta output, exceto as imagens usadas no modulo5
+output/*
+!output/modulo5/
+
+# Arquivos não utilizados ou muito grandes no data_clean
+data_clean/potencial_agri_sudeste.gpkg
+data_clean/hidrovias_sudeste.gpkg
+
+# Arquivos temporários e logs locais
+*.log
+.DS_Store
