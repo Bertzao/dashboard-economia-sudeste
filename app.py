@@ -22,7 +22,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🗺️ Economia Regional e Urbana - Mackenzie Rio")
+st.title("🗺️ Você conhece a Região Sudeste? - Economia Regional e Urbana")
 st.markdown("""
 **Bem-vindo ao Dashboard Analítico do Mackenzie Rio!**
 
