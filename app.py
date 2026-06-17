@@ -268,7 +268,7 @@ with tab2:
         )
         fig_vocacao.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend_title_text="Setor Dominante")
         st.plotly_chart(fig_vocacao, use_container_width=True)
-        st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
+        st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios - 2021)")
         
     with col_mapa2:
         st.subheader("Mapa Interativo de Modelos Espaciais")
@@ -309,7 +309,7 @@ with tab2:
                 )
                 fig_vab.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Agropecuário")
                 st.plotly_chart(fig_vab, use_container_width=True)
-                st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
+                st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios - 2021)")
                 
             with aba_potencial:
                 st.markdown("**Aptidão Agrícola das Terras**")
@@ -433,7 +433,7 @@ with tab2:
                 )
                 fig_ind.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Indústria")
                 st.plotly_chart(fig_ind, use_container_width=True)
-                st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
+                st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios - 2021)")
                 
             with aba_ind2:
                 fig_log = go.Figure()
@@ -521,7 +521,7 @@ with tab2:
             )
             fig_serv.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Serviços")
             st.plotly_chart(fig_serv, use_container_width=True)
-            st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
+            st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios - 2021)")
  
 # ------------------------------------------------------------------------------
 # ABA 3: Concentração & Dependência
@@ -585,4 +585,4 @@ with tab3:
             title="VAB por Estado e Setor"
         )
         st.plotly_chart(fig_cempre, use_container_width=True)
-        st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
+        st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios - 2021)")
