@@ -566,21 +566,23 @@ with tab3:
         st.plotly_chart(fig_ihh, use_container_width=True)
         
     with col_cempre:
-        st.subheader("Demografia Empresarial (CEMPRE)")
-        st.markdown("Total de empresas por estado e setor.")
+        st.subheader("Composição Setorial por Estado")
+        st.markdown("Valor Adicionado Bruto (VAB) total por estado e setor.")
         
-        # Mock de empresas baseado em proporções reais
-        mock_cempre = pd.DataFrame({
-            "UF": ["SP", "MG", "RJ", "ES"],
-            "Serviços": [1500000, 450000, 380000, 120000],
-            "Indústria": [300000, 120000, 50000, 30000],
-            "Agropecuária": [50000, 80000, 10000, 15000]
+        # Agrupamento real com os dados do IBGE
+        df_uf_setor = df.groupby("SIGLA_UF")[["VAB_Servicos", "VAB_Industria", "VAB_Agropecuaria"]].sum().reset_index()
+        df_uf_setor = df_uf_setor.rename(columns={
+            "SIGLA_UF": "UF",
+            "VAB_Servicos": "Serviços",
+            "VAB_Industria": "Indústria",
+            "VAB_Agropecuaria": "Agropecuária"
         })
+        
         fig_cempre = px.bar(
-            mock_cempre.melt(id_vars="UF", var_name="Setor", value_name="Qtd_Empresas"),
-            x="UF", y="Qtd_Empresas", color="Setor", barmode="group",
+            df_uf_setor.melt(id_vars="UF", var_name="Setor", value_name="VAB"),
+            x="UF", y="VAB", color="Setor", barmode="group",
             color_discrete_map={"Serviços": "#1F77B4", "Indústria": "#FF7F0E", "Agropecuária": "#2CA02C"},
-            title="Quantidade de Empresas Ativas (Simulação)"
+            title="VAB por Estado e Setor"
         )
         st.plotly_chart(fig_cempre, use_container_width=True)
-        st.caption("*Nota: Dados de empresas (CEMPRE) são representações simuladas. Integração pendente.*")
+        st.caption("Fonte: IBGE (Produto Interno Bruto dos Municípios)")
