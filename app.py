@@ -22,8 +22,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🗺️ Análise de Economia Regional e Urbana — Sudeste do Brasil")
-st.markdown("Dashboard Analítico interativo baseado em modelos espaciais (Von Thünen, Weber, Christaller).")
+st.title("🗺️ Economia Regional e Urbana - Mackenzie Rio")
+st.markdown("""
+**Bem-vindo ao Dashboard Analítico do Mackenzie Rio!**
+
+Este painel interativo foi criado para ajudar você a explorar a economia da região Sudeste de maneira simples e visual. Ele demonstra na prática como funcionam três grandes modelos clássicos de localização espacial:
+- **Von Thünen (Agropecuária):** Mostra como a produção agrícola se organiza no espaço considerando a distância até os mercados consumidores.
+- **Weber (Indústria):** Explica a localização das indústrias com base na busca pelos menores custos de transporte e produção.
+- **Christaller (Serviços):** Ilustra a hierarquia das cidades, mostrando como o comércio e os serviços se distribuem para atender a população.
+""")
 
 # ==============================================================================
 # CARREGAMENTO DE DADOS (CACHE)
@@ -150,7 +157,7 @@ tab1, tab2, tab3 = st.tabs([
 # ------------------------------------------------------------------------------
 with tab1:
     st.header("Panorama Demográfico e Estrutural")
-    st.markdown("Contexto populacional e gargalos sociais da região Sudeste.")
+    st.markdown("Uma visão geral e simplificada da distribuição da população e das características sociais da região Sudeste.")
     
     # Filtros na parte superior da Aba 1
     filtro_col1, filtro_col2 = st.columns(2)
@@ -237,7 +244,7 @@ with tab1:
 # ------------------------------------------------------------------------------
 with tab2:
     st.header("Modelos Clássicos e Vocação Econômica")
-    st.markdown("Como a teoria espacial (Von Thünen, Weber, Christaller) acontece na prática.")
+    st.markdown("Explore de forma visual como as teorias de Von Thünen, Weber e Christaller explicam a organização do Sudeste na prática.")
     
     col_mapa1, col_mapa2 = st.columns(2)
     
@@ -274,6 +281,12 @@ with tab2:
         )
         
         if "Agro" in modelo_selecionado:
+            st.info("""
+            **O que é o Modelo de Von Thünen?** (Agropecuária) 🚜
+            
+            **De forma simples: A distância até a cidade dita o que vai ser plantado.**
+            Imagine a cidade como um grande mercado. Os produtores mais próximos cultivam produtos perecíveis (como hortaliças e leite) para chegar fresquinho e não estragar na viagem. Já os produtores mais distantes criam gado ou plantam grãos (como soja), pois o frete compensa mais e esses produtos demoram a estragar.
+            """)
             aba_vab, aba_potencial, aba_restricoes = st.tabs(["💰 VAB Agropecuário", "🌱 Potencialidade Agrícola", "🌳 Biomas e Restrições"])
             
             with aba_vab:
@@ -394,6 +407,12 @@ with tab2:
                 st.caption("Fontes: IBGE (Biomas), Ministério do Meio Ambiente/ICMBio (UCs)")
  
         elif "Indústria" in modelo_selecionado:
+            st.info("""
+            **O que é o Modelo de Weber?** (Indústria) 🏭
+            
+            **De forma simples: A fábrica busca sempre o menor custo de frete e produção.**
+            As indústrias escolhem o local para se instalar tentando gastar o mínimo possível com transporte. Se a matéria-prima é muito pesada (como minério de ferro), a fábrica fica perto da mina. Mas se o produto final é mais pesado ou frágil (como bebidas em garrafa), a fábrica vai ficar perto dos consumidores.
+            """)
             aba_ind1, aba_ind2 = st.tabs(["🏭 VAB Indústria", "🛤️ Infraestrutura Logística"])
             with aba_ind1:
                 vab_ind_max = df["VAB_Industria"].quantile(0.95)
@@ -478,6 +497,12 @@ with tab2:
                 st.caption("Fonte: Ministério da Infraestrutura / EPL / DNIT / ANTT")
  
         elif "Serviços" in modelo_selecionado:
+            st.info("""
+            **O que é o Modelo de Christaller?** (Serviços) 🏪
+            
+            **De forma simples: Cidades grandes têm de tudo, cidades pequenas têm apenas o básico.**
+            Pense nas grandes capitais como 'shopping centers' gigantes que oferecem serviços complexos (hospitais de ponta, universidades, aeroportos), atraindo pessoas de muito longe. Já as cidades pequenas são como 'mercadinhos de bairro', oferecendo apenas serviços básicos do dia a dia (padarias, farmácias) para quem mora ali perto.
+            """)
             vab_serv_max = df["VAB_Servicos"].quantile(0.95)
             fig_serv = px.choropleth_mapbox(
                 df,
@@ -502,11 +527,16 @@ with tab2:
 # ABA 3: Concentração & Dependência
 # ------------------------------------------------------------------------------
 with tab3:
-    st.header("Concentração e Dependência Especial")
-    st.markdown("Métricas analíticas espaciais: Quociente Locacional (QL) e IHH.")
+    st.header("Concentração e Dependência Espacial")
+    st.info("""
+    **O que são esses Modelos de Concentração?** 📊
+    
+    De forma simples, eles medem a **especialidade** e o **domínio** das cidades:
+    - 🎯 **Quociente Locacional (QL):** É o "termômetro de vocação". Se uma cidade tem o QL maior que 1 na Indústria, significa que ela é "especialista" nisso em comparação ao resto do Sudeste.
+    - 👑 **Índice IHH:** Mede a "monopolização". Se o IHH for alto, significa que quase toda a riqueza daquele setor está nas mãos de um pequeno "clube VIP" de poucas cidades.
+    """)
     
     st.subheader("Matriz de Quociente Locacional (QL)")
-    st.markdown("Cidades com QL > 1 são especializadas naquele setor em relação à região Sudeste.")
     
     # Preparar dados para o Heatmap (Top 30 cidades por PIB para visualização)
     df_top_ql = df.nlargest(30, "PIB").set_index("NM_MUN")[["QL_Agro", "QL_Ind", "QL_Serv"]]
