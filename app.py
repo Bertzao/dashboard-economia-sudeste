@@ -237,7 +237,7 @@ with tab1:
             color_discrete_map={"Branca": "#E0E0E0", "Parda": "#A67C52", "Preta": "#333333"}
         )
         st.plotly_chart(fig_raca, use_container_width=True)
-        st.caption("Fonte: IBGE (Censo Demográfico)")
+        st.caption("Fonte: IBGE (Censo Demográfico - 2022)")
 
 # ------------------------------------------------------------------------------
 # ABA 2: Modelos Clássicos & Vocação
