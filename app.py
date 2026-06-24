@@ -334,12 +334,25 @@ with tab4:
         # Visualização: Hierarquia REGIC
         df_regic = df[df["lat"].notnull()].copy()
         
-        tamanho_regic = {"Metrópole": 20, "Capital Regional": 10, "Centro Local": 3}
-        df_regic["Tamanho"] = df_regic["Hierarquia_REGIC"].map(tamanho_regic)
+        tamanho_regic = {
+            "Metrópole": 20, 
+            "Capital Regional": 12, 
+            "Centro Subregional": 8,
+            "Centro de Zona": 5,
+            "Centro Local": 3
+        }
+        df_regic["Tamanho"] = df_regic["Hierarquia_REGIC"].map(tamanho_regic).fillna(3)
         
+        cores_regic = {
+            "Metrópole": "#D32F2F", 
+            "Capital Regional": "#FBC02D", 
+            "Centro Subregional": "#388E3C",
+            "Centro de Zona": "#1976D2",
+            "Centro Local": "#7F8C8D"
+        }
         fig_regic = px.scatter_mapbox(
             df_regic, lat="lat", lon="lon", size="Tamanho", color="Hierarquia_REGIC",
-            color_discrete_map={"Metrópole": "#D32F2F", "Capital Regional": "#FBC02D", "Centro Local": "#7F8C8D"},
+            color_discrete_map=cores_regic,
             hover_name="NM_MUN", hover_data={"Hierarquia_REGIC": True, "Tamanho": False, "lat": False, "lon": False},
             mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}
         )
