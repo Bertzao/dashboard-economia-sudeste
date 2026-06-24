@@ -120,8 +120,9 @@ def carregar_centroides():
     gdf = gpd.read_file(GEOJSON_PATH)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        gdf["lat"] = gdf.geometry.centroid.y
-        gdf["lon"] = gdf.geometry.centroid.x
+        pts = gdf.geometry.representative_point()
+        gdf["lat"] = pts.y
+        gdf["lon"] = pts.x
     return gdf[["CD_MUN", "lat", "lon"]]
 
 @st.cache_data
@@ -363,38 +364,37 @@ with tab4:
     
     col1, col2 = st.columns([3, 1])
     with col1:
-        # Visualização: Hierarquia REGIC
+        # Visualização: Hierarquia REGIC (apenas níveis acima de Centro Local)
         df_regic = df[df["lat"].notnull()].copy()
+        df_regic_vis = df_regic[df_regic["Hierarquia_REGIC"] != "Centro Local"].copy()
         
         tamanho_regic = {
-            "Metrópole": 20, 
-            "Capital Regional": 12, 
-            "Centro Subregional": 8,
-            "Centro de Zona": 5,
-            "Centro Local": 3
+            "Metrópole": 22, 
+            "Capital Regional": 14, 
+            "Centro Subregional": 9,
+            "Centro de Zona": 5
         }
-        df_regic["Tamanho"] = df_regic["Hierarquia_REGIC"].map(tamanho_regic).fillna(3)
+        df_regic_vis["Tamanho"] = df_regic_vis["Hierarquia_REGIC"].map(tamanho_regic).fillna(5)
         
         cores_regic = {
             "Metrópole": "#D32F2F", 
             "Capital Regional": "#FBC02D", 
             "Centro Subregional": "#388E3C",
-            "Centro de Zona": "#1976D2",
-            "Centro Local": "#7F8C8D"
+            "Centro de Zona": "#1976D2"
         }
         fig_regic = px.scatter_mapbox(
-            df_regic, lat="lat", lon="lon", size="Tamanho", color="Hierarquia_REGIC",
+            df_regic_vis, lat="lat", lon="lon", size="Tamanho", color="Hierarquia_REGIC",
             color_discrete_map=cores_regic,
             hover_name="NM_MUN", hover_data={"Hierarquia_REGIC": True, "Tamanho": False, "lat": False, "lon": False},
             mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}
         )
         
-        # Simulando Raios de Influência para Metrópoles (Saúde/Trabalho)
-        metros = df_regic[df_regic["Hierarquia_REGIC"] == "Metrópole"]
+        # Raios de Influência para Metrópoles (Saúde/Trabalho)
+        metros = df_regic_vis[df_regic_vis["Hierarquia_REGIC"] == "Metrópole"]
         for _, m in metros.iterrows():
             fig_regic.add_trace(go.Scattermapbox(
                 lat=[m["lat"]], lon=[m["lon"]], mode="markers",
-                marker=dict(size=80, color="rgba(211, 47, 47, 0.2)"),
+                marker=dict(size=80, color="rgba(211, 47, 47, 0.15)"),
                 name="Raio Longo (Saúde/Gestão)", showlegend=False, hoverinfo="skip"
             ))
             
