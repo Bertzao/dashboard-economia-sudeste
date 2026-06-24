@@ -150,7 +150,7 @@ df.loc[df["Populacao_Estimada"] > 500000, "Hierarquia_REGIC"] = "Capital Regiona
 df.loc[df["Populacao_Estimada"] > 2000000, "Hierarquia_REGIC"] = "Metrópole"
 
 # Configuração de Câmera Global (Zoom ajustado para exibir bordas dos estados)
-CAMERA_SUDESTE = {"lat": -20.5, "lon": -44.0, "zoom": 4.8}
+CAMERA_SUDESTE = {"lat": -20.0, "lon": -43.5, "zoom": 4.3}
 
 # ==============================================================================
 # ESTRUTURA DE ABAS
