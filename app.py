@@ -297,23 +297,36 @@ with tab2:
         ))
         
         layers_rest = []
+        
+        # Separar biomas por nome com cores distintas
+        cores_biomas = {
+            "Mata Atlântica": {"fill": "rgba(34, 139, 34, 0.35)", "line": "rgba(20, 100, 20, 0.8)", "legend": "#228B22"},
+            "Cerrado":        {"fill": "rgba(210, 180, 60, 0.35)", "line": "rgba(170, 140, 30, 0.8)", "legend": "#D2B43C"},
+            "Caatinga":       {"fill": "rgba(194, 150, 100, 0.35)", "line": "rgba(160, 120, 70, 0.8)", "legend": "#C29664"}
+        }
+        
         if geojson_biomas:
-            layers_rest.append({"source": geojson_biomas, "type": "fill", "color": "rgba(0, 170, 160, 0.35)"})
-            layers_rest.append({"source": geojson_biomas, "type": "line", "color": "rgba(0, 130, 120, 0.7)", "line": {"width": 1}})
-            # Marcador de legenda para Biomas
-            fig_rest.add_trace(go.Scattermapbox(
-                lat=[None], lon=[None], mode="markers",
-                marker=dict(size=12, color="rgba(0, 170, 160, 0.6)"),
-                name="Biomas (Mata Atlântica / Cerrado)"
-            ))
+            for nome_bioma, cores in cores_biomas.items():
+                # Filtrar features deste bioma
+                feats = [ft for ft in geojson_biomas.get("features", []) if ft.get("properties", {}).get("NM_BIOMA", "") == nome_bioma]
+                if not feats:
+                    continue
+                gj_bioma = {"type": "FeatureCollection", "features": feats}
+                layers_rest.append({"source": gj_bioma, "type": "fill", "color": cores["fill"]})
+                layers_rest.append({"source": gj_bioma, "type": "line", "color": cores["line"], "line": {"width": 1.2}})
+                fig_rest.add_trace(go.Scattermapbox(
+                    lat=[None], lon=[None], mode="markers",
+                    marker=dict(size=14, color=cores["legend"], symbol="square"),
+                    name=f"🌿 {nome_bioma}"
+                ))
+        
         if geojson_ucs:
             layers_rest.append({"source": geojson_ucs, "type": "fill", "color": "rgba(255, 100, 0, 0.2)"})
             layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(255, 100, 0, 0.8)", "line": {"width": 1.5}})
-            # Marcador de legenda para UCs
             fig_rest.add_trace(go.Scattermapbox(
                 lat=[None], lon=[None], mode="markers",
-                marker=dict(size=12, color="rgba(255, 100, 0, 0.7)"),
-                name="Unidades de Conservação (ICMBio)"
+                marker=dict(size=14, color="rgba(255, 100, 0, 0.7)", symbol="square"),
+                name="🛡️ Unidades de Conservação"
             ))
         
         fig_rest.update_layout(
