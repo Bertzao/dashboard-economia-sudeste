@@ -127,6 +127,7 @@ def carregar_centroides():
 @st.cache_data
 def carregar_bordas_estados():
     gdf = gpd.read_file(GEOJSON_PATH)
+    gdf['SIGLA_UF'] = gdf['CD_MUN'].astype(str).str[:2]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         gdf_estados = gdf.dissolve(by='SIGLA_UF')
