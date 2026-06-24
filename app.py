@@ -69,6 +69,29 @@ def carregar_dados():
     # Índice de Envelhecimento: idosos(60+) para cada 100 jovens(0-14)
     df["Indice_Envelhecimento"] = np.random.uniform(40, 160, len(df)).round(1)
     
+    # Carregar Fatos Reais (PAM, REGIC, CNAE)
+    try:
+        fato_culturas = pd.read_csv(os.path.join(BASE_DIR, "data_export", "fato_culturas.csv"), dtype={"CD_MUN": str})
+        df = pd.merge(df, fato_culturas, on="CD_MUN", how="left")
+    except:
+        df["Cultura_Predominante"] = "Sem Dados"
+        
+    try:
+        fato_regic = pd.read_csv(os.path.join(BASE_DIR, "data_export", "fato_regic.csv"), dtype={"CD_MUN": str})
+        df = pd.merge(df, fato_regic, on="CD_MUN", how="left")
+    except:
+        df["Hierarquia_REGIC"] = "Centro Local"
+        
+    try:
+        fato_cnae = pd.read_csv(os.path.join(BASE_DIR, "data_export", "fato_cnae.csv"), dtype={"CD_MUN": str})
+        df = pd.merge(df, fato_cnae, on="CD_MUN", how="left")
+    except:
+        df["CNAE_Predominante"] = "Sem Dados"
+        
+    df["Cultura_Predominante"] = df.get("Cultura_Predominante", pd.Series(index=df.index)).fillna("Pouca Expressão Agrícola")
+    df["Hierarquia_REGIC"] = df.get("Hierarquia_REGIC", pd.Series(index=df.index)).fillna("Centro Local")
+    df["CNAE_Predominante"] = df.get("CNAE_Predominante", pd.Series(index=df.index)).fillna("Pouca Expressão Industrial")
+    
     return df
 
 @st.cache_data
@@ -131,23 +154,7 @@ df.loc[df["VAB_Industria"] / vab_total > 0.5, "Vocacao_Dominante"] = "Indústria
 df.loc[df["VAB_Servicos"] / vab_total > 0.5, "Vocacao_Dominante"] = "Serviços"
 df.loc[df["VAB_Adm_Publica"] / vab_total > 0.5, "Vocacao_Dominante"] = "Administração Pública"
 
-# Mock Distância até a Capital (Para modelos Von Thünen e Christaller)
-capitais = {"SP": (-23.55, -46.63), "RJ": (-22.90, -43.20), "MG": (-18.92, -43.93), "ES": (-20.31, -40.31)}
-df["Dist_Capital_km"] = df.apply(lambda row: haversine(row["lon"], row["lat"], capitais[row["SIGLA_UF"]][1], capitais[row["SIGLA_UF"]][0]) if pd.notnull(row["lat"]) else 999, axis=1)
-
-# Mock Culturas (Von Thünen)
-# Perecíveis (Hortifruti) mais próximos, Extensivos (Cana/Soja) mais distantes.
-df["Cultura_Predominante"] = np.where(df["Dist_Capital_km"] < 150, "Hortifruti (Perecível/Alta Renda)", "Cana-de-Açúcar / Soja (Baixa Perecibilidade)")
-df.loc[df["VAB_Agropecuaria"] < df["VAB_Agropecuaria"].quantile(0.4), "Cultura_Predominante"] = "Pouca Expressão Agrícola"
-
-# Mock Empresas CNAE e Mão de Obra (Weber)
-df["CNAE_Predominante"] = np.where(df["Dist_Capital_km"] > 250, "Indústria Têxtil (Intensiva em Mão de Obra)", "Metalurgia/Química (Intensiva em Capital/Frete)")
-df.loc[df["VAB_Industria"] < df["VAB_Industria"].quantile(0.6), "CNAE_Predominante"] = "Pouca Expressão Industrial"
-
-# Mock REGIC - Regiões de Influência
-df["Hierarquia_REGIC"] = "Centro Local"
-df.loc[df["Populacao_Estimada"] > 500000, "Hierarquia_REGIC"] = "Capital Regional"
-df.loc[df["Populacao_Estimada"] > 2000000, "Hierarquia_REGIC"] = "Metrópole"
+# Mocks de dados removidos: O painel agora consome os dados reais (PAM, REGIC, CNAE) extraídos em preparar_dados_reais.py
 
 # Configuração de Câmera Global (Zoom ajustado para exibir bordas dos estados)
 CAMERA_SUDESTE = {"lat": -20.0, "lon": -43.5, "zoom": 4.3}
@@ -228,15 +235,10 @@ with tab2:
     with aba_vt1:
         col1, col2 = st.columns([3, 1])
         with col1:
-            cores_cultura = {
-                "Hortifruti (Perecível/Alta Renda)": "#2CA02C", 
-                "Cana-de-Açúcar / Soja (Baixa Perecibilidade)": "#FFD700",
-                "Pouca Expressão Agrícola": "#D9D9D9"
-            }
             fig_cultura = px.choropleth_mapbox(
                 df, geojson=geojson, locations='CD_MUN', featureidkey="properties.CD_MUN",
-                color='Cultura_Predominante', color_discrete_map=cores_cultura,
-                hover_name='NM_MUN', hover_data={'Dist_Capital_km': ':.0f'},
+                color='Cultura_Predominante', color_discrete_sequence=px.colors.qualitative.Set2,
+                hover_name='NM_MUN',
                 mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8
             )
             fig_cultura.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5))
@@ -282,14 +284,9 @@ with tab3:
     with aba_w1:
         col1, col2 = st.columns([3, 1])
         with col1:
-            cores_cnae = {
-                "Indústria Têxtil (Intensiva em Mão de Obra)": "#FF7F0E", 
-                "Metalurgia/Química (Intensiva em Capital/Frete)": "#1F77B4",
-                "Pouca Expressão Industrial": "#D9D9D9"
-            }
             fig_cnae = px.choropleth_mapbox(
                 df, geojson=geojson, locations='CD_MUN', featureidkey="properties.CD_MUN",
-                color='CNAE_Predominante', color_discrete_map=cores_cnae,
+                color='CNAE_Predominante', color_discrete_sequence=px.colors.qualitative.Plotly,
                 hover_name='NM_MUN',
                 mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8
             )
