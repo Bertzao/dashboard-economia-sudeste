@@ -127,12 +127,11 @@ def carregar_centroides():
 
 @st.cache_data
 def carregar_bordas_estados():
-    gdf = gpd.read_file(GEOJSON_PATH)
-    gdf['SIGLA_UF'] = gdf['CD_MUN'].astype(str).str[:2]
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        gdf_estados = gdf.dissolve(by='SIGLA_UF')
-    return json.loads(gdf_estados.geometry.to_json())
+    path = os.path.join(BASE_DIR, "data_export", "bordas_estados.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
 
 df = carregar_dados()
 geojson = carregar_geojson()
@@ -141,12 +140,14 @@ centroides = carregar_centroides()
 df = pd.merge(df, centroides, on="CD_MUN", how="left")
 
 def adicionar_bordas(fig):
+    if not geojson_estados:
+        return
     layers = list(fig.layout.mapbox.layers) if getattr(fig.layout.mapbox, 'layers', None) else []
     layers.append({
         "source": geojson_estados,
         "type": "line",
-        "color": "black",
-        "line": {"width": 2}
+        "color": "rgba(0, 0, 0, 0.85)",
+        "line": {"width": 2.5}
     })
     fig.update_layout(mapbox_layers=layers)
 
