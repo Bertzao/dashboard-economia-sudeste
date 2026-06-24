@@ -288,13 +288,40 @@ with tab2:
     with aba_vt3:
         st.markdown("**Biomas e Unidades de Conservação (Limites ao Uso da Terra)**")
         fig_rest = go.Figure()
-        fig_rest.update_layout(mapbox=dict(style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center=dict(lat=CAMERA_SUDESTE["lat"], lon=CAMERA_SUDESTE["lon"])))
+        
+        # Trace invisível para forçar o Plotly a renderizar o mapa Mapbox
+        fig_rest.add_trace(go.Scattermapbox(
+            lat=[CAMERA_SUDESTE["lat"]], lon=[CAMERA_SUDESTE["lon"]],
+            mode="markers", marker=dict(size=0, opacity=0),
+            showlegend=False, hoverinfo="skip"
+        ))
+        
         layers_rest = []
         if geojson_biomas:
-            layers_rest.append({"source": geojson_biomas, "type": "fill", "color": "rgba(0, 170, 160, 0.4)"})
+            layers_rest.append({"source": geojson_biomas, "type": "fill", "color": "rgba(0, 170, 160, 0.35)"})
+            layers_rest.append({"source": geojson_biomas, "type": "line", "color": "rgba(0, 130, 120, 0.7)", "line": {"width": 1}})
+            # Marcador de legenda para Biomas
+            fig_rest.add_trace(go.Scattermapbox(
+                lat=[None], lon=[None], mode="markers",
+                marker=dict(size=12, color="rgba(0, 170, 160, 0.6)"),
+                name="Biomas (Mata Atlântica / Cerrado)"
+            ))
         if geojson_ucs:
-            layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(255, 100, 0, 0.8)", "line": {"width": 1}})
-        fig_rest.update_layout(mapbox_layers=layers_rest, margin={"r":0,"t":0,"l":0,"b":0})
+            layers_rest.append({"source": geojson_ucs, "type": "fill", "color": "rgba(255, 100, 0, 0.2)"})
+            layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(255, 100, 0, 0.8)", "line": {"width": 1.5}})
+            # Marcador de legenda para UCs
+            fig_rest.add_trace(go.Scattermapbox(
+                lat=[None], lon=[None], mode="markers",
+                marker=dict(size=12, color="rgba(255, 100, 0, 0.7)"),
+                name="Unidades de Conservação (ICMBio)"
+            ))
+        
+        fig_rest.update_layout(
+            mapbox=dict(style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center=dict(lat=CAMERA_SUDESTE["lat"], lon=CAMERA_SUDESTE["lon"])),
+            mapbox_layers=layers_rest, 
+            margin={"r":0,"t":0,"l":0,"b":0},
+            legend=dict(orientation="h", yanchor="bottom", y=-0.05, xanchor="center", x=0.5)
+        )
         adicionar_bordas(fig_rest)
         st.plotly_chart(fig_rest, use_container_width=True)
         st.caption("Fontes: IBGE (Biomas Brasileiros) e MMA/ICMBio (Unidades de Conservação)")
@@ -330,12 +357,29 @@ with tab3:
     with aba_w2:
         st.markdown("**Malha Operante: Rodovias, Ferrovias e Portos**")
         fig_log = go.Figure()
-        fig_log.update_layout(mapbox=dict(style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center=dict(lat=CAMERA_SUDESTE["lat"], lon=CAMERA_SUDESTE["lon"])))
+        
+        # Trace base invisível para renderizar o mapa
+        fig_log.add_trace(go.Scattermapbox(
+            lat=[CAMERA_SUDESTE["lat"]], lon=[CAMERA_SUDESTE["lon"]],
+            mode="markers", marker=dict(size=0, opacity=0),
+            showlegend=False, hoverinfo="skip"
+        ))
+        
         layers_log = []
         if geojson_rodovias:
             layers_log.append({"source": geojson_rodovias, "type": "line", "color": "rgba(200, 0, 0, 0.6)", "line": {"width": 1.5}})
+            fig_log.add_trace(go.Scattermapbox(
+                lat=[None], lon=[None], mode="lines",
+                line=dict(width=3, color="rgba(200, 0, 0, 0.8)"),
+                name="🔴 Rodovias"
+            ))
         if geojson_ferrovias:
-            layers_log.append({"source": geojson_ferrovias, "type": "line", "color": "rgba(0, 0, 0, 0.8)", "line": {"width": 2}})
+            layers_log.append({"source": geojson_ferrovias, "type": "line", "color": "rgba(50, 50, 50, 0.85)", "line": {"width": 2}})
+            fig_log.add_trace(go.Scattermapbox(
+                lat=[None], lon=[None], mode="lines",
+                line=dict(width=3, color="rgba(50, 50, 50, 0.85)"),
+                name="⚫ Ferrovias"
+            ))
         
         if geojson_portos:
             lats_p, lons_p, nomes_p = [], [], []
@@ -345,9 +389,19 @@ with tab3:
                     lats_p.append(ft["geometry"]["coordinates"][1])
                     nomes_p.append(ft.get("properties", {}).get("nome", "Porto"))
             if lats_p:
-                fig_log.add_trace(go.Scattermapbox(lat=lats_p, lon=lons_p, mode="markers", marker=dict(size=10, color="#1565C0"), text=nomes_p, name="Portos"))
+                fig_log.add_trace(go.Scattermapbox(
+                    lat=lats_p, lon=lons_p, mode="markers",
+                    marker=dict(size=10, color="#1565C0", symbol="harbor"),
+                    text=nomes_p, name="🔵 Portos",
+                    hovertemplate="%{text}<extra></extra>"
+                ))
                 
-        fig_log.update_layout(mapbox_layers=layers_log, margin={"r":0,"t":0,"l":0,"b":0})
+        fig_log.update_layout(
+            mapbox=dict(style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center=dict(lat=CAMERA_SUDESTE["lat"], lon=CAMERA_SUDESTE["lon"])),
+            mapbox_layers=layers_log,
+            margin={"r":0,"t":0,"l":0,"b":0},
+            legend=dict(orientation="h", yanchor="bottom", y=-0.05, xanchor="center", x=0.5)
+        )
         adicionar_bordas(fig_log)
         st.plotly_chart(fig_log, use_container_width=True)
         st.caption("Fontes: Ministério da Infraestrutura, ANTT e DNIT")
