@@ -124,10 +124,29 @@ def carregar_centroides():
         gdf["lon"] = gdf.geometry.centroid.x
     return gdf[["CD_MUN", "lat", "lon"]]
 
+@st.cache_data
+def carregar_bordas_estados():
+    gdf = gpd.read_file(GEOJSON_PATH)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        gdf_estados = gdf.dissolve(by='SIGLA_UF')
+    return json.loads(gdf_estados.geometry.to_json())
+
 df = carregar_dados()
 geojson = carregar_geojson()
+geojson_estados = carregar_bordas_estados()
 centroides = carregar_centroides()
 df = pd.merge(df, centroides, on="CD_MUN", how="left")
+
+def adicionar_bordas(fig):
+    layers = list(fig.layout.mapbox.layers) if getattr(fig.layout.mapbox, 'layers', None) else []
+    layers.append({
+        "source": geojson_estados,
+        "type": "line",
+        "color": "black",
+        "line": {"width": 2}
+    })
+    fig.update_layout(mapbox_layers=layers)
 
 # ==============================================================================
 # CÁLCULOS ANALÍTICOS E MOCKS (QL, VOCAÇÃO, REGIC)
@@ -198,7 +217,9 @@ with tab1:
             mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8,
         )
         fig_pop.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+        adicionar_bordas(fig_pop)
         st.plotly_chart(fig_pop, use_container_width=True)
+        st.caption("Fonte: IBGE - Estimativas Populacionais / Censo Demográfico")
         
         if metrica_cor == "Índice de Envelhecimento":
             st.info("ℹ️ **Sobre o Índice de Envelhecimento:** Esta métrica indica a proporção de pessoas idosas (60 anos ou mais) para cada 100 indivíduos jovens (0 a 14 anos). Um valor de 140, por exemplo, significa que existem 140 idosos para cada 100 jovens no município, refletindo um estágio avançado de transição demográfica.")
@@ -242,7 +263,9 @@ with tab2:
                 mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8
             )
             fig_cultura.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5))
+            adicionar_bordas(fig_cultura)
             st.plotly_chart(fig_cultura, use_container_width=True)
+            st.caption("Fonte: IBGE - Produção Agrícola Municipal (PAM)")
         with col2:
             st.info("🚜 **Análise Espacial:** Observando o mapa, nota-se que a produção de **Hortifruti**, altamente perecível, concentra-se num raio próximo aos grandes centros urbanos. Culturas como **Cana-de-Açúcar e Soja**, que suportam maiores distâncias de escoamento, dominam as franjas interiores do Sudeste.")
 
@@ -255,7 +278,9 @@ with tab2:
             hover_name="NM_MUN"
         )
         fig_vab.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+        adicionar_bordas(fig_vab)
         st.plotly_chart(fig_vab, use_container_width=True)
+        st.caption("Fonte: IBGE - Produto Interno Bruto dos Municípios")
 
     with aba_vt3:
         st.markdown("**Biomas e Unidades de Conservação (Limites ao Uso da Terra)**")
@@ -267,7 +292,9 @@ with tab2:
         if geojson_ucs:
             layers_rest.append({"source": geojson_ucs, "type": "line", "color": "rgba(255, 100, 0, 0.8)", "line": {"width": 1}})
         fig_rest.update_layout(mapbox_layers=layers_rest, margin={"r":0,"t":0,"l":0,"b":0})
+        adicionar_bordas(fig_rest)
         st.plotly_chart(fig_rest, use_container_width=True)
+        st.caption("Fontes: IBGE (Biomas Brasileiros) e MMA/ICMBio (Unidades de Conservação)")
 
 # ------------------------------------------------------------------------------
 # ABA 3: WEBER
@@ -291,7 +318,9 @@ with tab3:
                 mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8
             )
             fig_cnae.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5))
+            adicionar_bordas(fig_cnae)
             st.plotly_chart(fig_cnae, use_container_width=True)
+            st.caption("Fonte: Receita Federal do Brasil (Cadastro de Estabelecimentos/CNAE)")
         with col2:
             st.info("🏭 **Dinâmica do Trabalho:** As indústrias intensivas em mão de obra migram para o interior em busca de flexibilidade e menor custo salarial. A metalurgia e a química pesada concentram-se nos litorais e eixos de ferrovias para escoamento logístico.")
 
@@ -316,7 +345,9 @@ with tab3:
                 fig_log.add_trace(go.Scattermapbox(lat=lats_p, lon=lons_p, mode="markers", marker=dict(size=10, color="#1565C0"), text=nomes_p, name="Portos"))
                 
         fig_log.update_layout(mapbox_layers=layers_log, margin={"r":0,"t":0,"l":0,"b":0})
+        adicionar_bordas(fig_log)
         st.plotly_chart(fig_log, use_container_width=True)
+        st.caption("Fontes: Ministério da Infraestrutura, ANTT e DNIT")
 
 # ------------------------------------------------------------------------------
 # ABA 4: CHRISTALLER
@@ -367,7 +398,9 @@ with tab4:
             ))
             
         fig_regic.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, legend_title_text="Hierarquia (IBGE REGIC)")
+        adicionar_bordas(fig_regic)
         st.plotly_chart(fig_regic, use_container_width=True)
+        st.caption("Fonte: IBGE - Regiões de Influência das Cidades (REGIC 2018)")
         
     with col2:
         st.info("🏪 **Raios Setoriais:**\n\n- **Saúde (Raio Longo):** Pacientes cruzam centenas de quilômetros em direção às Metrópoles para tratamentos complexos e infraestrutura hospitalar de ponta.\n- **Mercado de Trabalho (Raio Médio):** Deslocamentos pendulares diários, formando um tecido metropolitano denso.\n- **Educação Básica (Raio Curto):** Atração altamente localizada em Capitais Regionais e Centros Locais.")
@@ -405,7 +438,9 @@ with tab5:
             mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"], center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8
         )
         fig_ql.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="QL")
+        adicionar_bordas(fig_ql)
         st.plotly_chart(fig_ql, use_container_width=True)
+        st.caption("Fonte: Elaboração própria com dados do IBGE e Receita Federal")
         
     st.markdown("---")
     st.subheader("Distribuição Setorial do PIB (Top 3 Estados + Outros)")
