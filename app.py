@@ -397,15 +397,24 @@ with tab3:
         if geojson_portos:
             lats_p, lons_p, nomes_p = [], [], []
             for ft in geojson_portos.get("features", []):
-                if ft.get("geometry", {}).get("type") == "Point":
-                    lons_p.append(ft["geometry"]["coordinates"][0])
-                    lats_p.append(ft["geometry"]["coordinates"][1])
-                    nomes_p.append(ft.get("properties", {}).get("nome", "Porto"))
+                props = ft.get("properties", {})
+                lat_p = props.get("latitude")
+                lon_p = props.get("longitude")
+                sit = str(props.get("situacao", "")).lower()
+                # Incluir apenas portos em operação
+                if lat_p and lon_p and ("opera" in sit):
+                    try:
+                        lats_p.append(float(lat_p))
+                        lons_p.append(float(lon_p))
+                        nomes_p.append(props.get("nome", "Porto"))
+                    except (ValueError, TypeError):
+                        pass
             if lats_p:
                 fig_log.add_trace(go.Scattermapbox(
-                    lat=lats_p, lon=lons_p, mode="markers",
-                    marker=dict(size=10, color="#1565C0", symbol="harbor"),
-                    text=nomes_p, name="🔵 Portos",
+                    lat=lats_p, lon=lons_p, mode="markers+text",
+                    marker=dict(size=10, color="#1565C0"),
+                    text=nomes_p, name="🔵 Portos Operantes",
+                    textposition="top center", textfont=dict(size=8, color="#1565C0"),
                     hovertemplate="%{text}<extra></extra>"
                 ))
                 
