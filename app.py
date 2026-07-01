@@ -383,6 +383,34 @@ with tab3:
             st.caption("Fonte: Receita Federal do Brasil (Cadastro de Estabelecimentos/CNAE)")
         with col2:
             st.info("🏭 **Dinâmica do Trabalho:** As indústrias intensivas em mão de obra migram para o interior em busca de flexibilidade e menor custo salarial. A metalurgia e a química pesada concentram-se nos litorais e eixos de ferrovias para escoamento logístico.")
+            
+            st.markdown("#### O que significam esses CNAEs?")
+            st.markdown("""
+            O mapa considera **apenas a Indústria de Transformação**, ignorando o comércio e os serviços (que pertencem ao Modelo de Christaller na próxima aba).
+            
+            **Principais Categorias:**
+            - 🥩 **Alimentos:** **Fabricação** (frigoríficos, laticínios, usinas), *não restaurantes*. Fica no interior por ser agroindústria (perto da matéria-prima).
+            - 👕 **Vestuário:** Confecção de roupas. Busca o interior atrás de mão de obra barata.
+            - 🔧 **Prod. de Metal / Manutenção:** Estruturas metálicas e reparo de maquinário industrial.
+            - 🧱 **Minerais Não Metálicos:** Cimento e cerâmica. Presos às jazidas (calcário/argila) devido ao alto custo de transporte do minério.
+            """)
+            
+            top_cnaes = df[df['CNAE_Predominante'] != 'Pouca Expressão Industrial']['CNAE_Predominante'].value_counts().head(5)
+            df_top = pd.DataFrame({"Indústria": top_cnaes.index, "Municípios": top_cnaes.values})
+            fig_bar_cnae = px.bar(
+                df_top, x="Municípios", y="Indústria", orientation='h', 
+                color_discrete_sequence=["#E67E22"],
+                text="Municípios"
+            )
+            fig_bar_cnae.update_traces(textposition='outside')
+            fig_bar_cnae.update_layout(
+                margin={"r":0,"t":30,"l":0,"b":0}, height=220, 
+                yaxis={'categoryorder':'total ascending'},
+                xaxis_title="", yaxis_title="",
+                title="Top 5 Indústrias Dominantes",
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_bar_cnae, use_container_width=True)
 
     with aba_w2:
         st.markdown("**Malha Operante: Rodovias, Ferrovias e Portos**")
