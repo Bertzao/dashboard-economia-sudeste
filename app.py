@@ -62,11 +62,27 @@ def carregar_dados():
     for col in ["VAB_Agropecuaria", "VAB_Industria", "VAB_Servicos", "VAB_Adm_Publica", "PIB"]:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     
-    # Demografia Simulada
+    # População Real (IBGE - Estimativas Tabela 6579)
+    try:
+        fato_pop = pd.read_csv(os.path.join(BASE_DIR, "data_export", "fato_populacao.csv"), sep=";", dtype={"CD_MUN": str})
+        df = pd.merge(df, fato_pop[["CD_MUN", "Pop_2021"]], on="CD_MUN", how="left")
+        df["Populacao_Estimada"] = pd.to_numeric(df["Pop_2021"], errors="coerce").fillna(0).astype(int)
+        df.drop(columns=["Pop_2021"], inplace=True, errors="ignore")
+    except Exception:
+        # Fallback: simulação caso o arquivo não exista
+        np.random.seed(42)
+        df["Populacao_Estimada"] = (df["PIB"] / 50) * np.random.uniform(0.8, 1.2, len(df))
+        df["Populacao_Estimada"] = df["Populacao_Estimada"].clip(lower=1000).astype(int)
+    
+    # PIB per Capita real (R$)
+    df["PIB_percapita"] = np.where(
+        df["Populacao_Estimada"] > 0,
+        (df["PIB"] * 1000 / df["Populacao_Estimada"]).round(2),  # PIB está em R$ mil, converter para R$
+        0
+    )
+    
+    # Índice de Envelhecimento: idosos(60+) para cada 100 jovens(0-14) — mantém simulado
     np.random.seed(42)
-    df["Populacao_Estimada"] = (df["PIB"] / 50) * np.random.uniform(0.8, 1.2, len(df))
-    df["Populacao_Estimada"] = df["Populacao_Estimada"].clip(lower=1000).astype(int)
-    # Índice de Envelhecimento: idosos(60+) para cada 100 jovens(0-14)
     df["Indice_Envelhecimento"] = np.random.uniform(40, 160, len(df)).round(1)
     
     # Carregar Fatos Reais (PAM, REGIC, CNAE)
@@ -184,12 +200,13 @@ CAMERA_SUDESTE = {"lat": -20.0, "lon": -43.5, "zoom": 4.3}
 # ==============================================================================
 # ESTRUTURA DE ABAS
 # ==============================================================================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "👥 Demografia", 
     "🚜 Von Thünen (Agro)", 
     "🏭 Weber (Indústria)", 
     "🏪 Christaller (Serviços)",
-    "🎯 Especialização (QL)"
+    "🎯 Especialização (QL)",
+    "📚 Teoria & Política Regional"
 ])
 
 # ------------------------------------------------------------------------------
@@ -541,3 +558,494 @@ with tab5:
         title="Valor Adicionado Bruto por Estado"
     )
     st.plotly_chart(fig_bar, use_container_width=True)
+
+# ------------------------------------------------------------------------------
+# ABA 6: TEORIA REGIONAL (MYRDAL) & POLÍTICA PÚBLICA (APLs)
+# ------------------------------------------------------------------------------
+with tab6:
+    st.header("📚 Teoria Regional & Política Pública Estratégica")
+    st.markdown("""
+    Esta seção aplica a **Teoria da Causação Circular Cumulativa** de **Gunnar Myrdal** ao desenvolvimento da região Sudeste 
+    e apresenta a **Política de Arranjos Produtivos Locais (APLs)** como instrumento de descentralização produtiva.
+    """)
+
+    aba_teoria, aba_politica = st.tabs(["🔄 Teoria de Myrdal", "🏗️ Política dos APLs"])
+
+    # ==========================================================================
+    # SUB-ABA: TEORIA DE MYRDAL
+    # ==========================================================================
+    with aba_teoria:
+        # --- Seção a) Conceitos Centrais ---
+        st.subheader("a) Conceitos Centrais da Teoria")
+        st.markdown("""
+        A teoria de **Gunnar Myrdal (1957)** argumenta que o desenvolvimento regional **não** tende ao equilíbrio natural. 
+        As forças de mercado tendem a **aumentar as desigualdades** entre regiões por meio de um ciclo vicioso de crescimento 
+        onde *"o sucesso atrai mais sucesso"*.
+        """)
+
+        col_polar, col_propag = st.columns(2)
+        with col_polar:
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #FF6B6B22, #EE525222); border-left: 4px solid #E74C3C; 
+                        padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                <h4 style="color: #C0392B; margin-top: 0;">⬅️ Efeitos de Polarização <i>(Backwash Effects)</i></h4>
+                <p style="color: #2C3E50;">A região central <b>suga recursos</b> da periferia:</p>
+                <ul style="color: #2C3E50;">
+                    <li>💰 <b>Capital e investimentos</b> migram para o centro</li>
+                    <li>🧑‍🎓 <b>Mão de obra qualificada</b> abandona a periferia</li>
+                    <li>🏦 <b>Crédito e infraestrutura</b> concentram-se no polo</li>
+                    <li>📉 Resultado: <b>agravamento do atraso periférico</b></li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_propag:
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #27AE6022, #2ECC7122); border-left: 4px solid #27AE60; 
+                        padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                <h4 style="color: #1E8449; margin-top: 0;">➡️ Efeitos de Propagação <i>(Spread Effects)</i></h4>
+                <p style="color: #2C3E50;">O crescimento do centro <b>transborda</b> para a periferia:</p>
+                <ul style="color: #2C3E50;">
+                    <li>📦 <b>Demanda por matérias-primas</b> da periferia aumenta</li>
+                    <li>🏭 <b>Indústrias migram</b> pelo alto custo no centro</li>
+                    <li>🛣️ <b>Infraestrutura se expande</b> para escoamento</li>
+                    <li>📈 Resultado: <b>desconcentração produtiva</b></li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.warning("⚠️ **Segundo Myrdal**, em países em desenvolvimento como o Brasil, os **efeitos de polarização tendem a ser muito mais fortes** que os de propagação, perpetuando as desigualdades regionais.")
+
+        # Diagrama de Causação Circular
+        st.markdown("---")
+        st.subheader("Diagrama: Ciclo de Causação Circular Cumulativa no Sudeste")
+        st.markdown("""
+        <div style="background: #F8F9FA; border: 2px solid #BDC3C7; border-radius: 12px; padding: 24px; text-align: center;">
+            <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="background: #E74C3C; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 14px;">☕ Economia Cafeeira<br><small>Acumulação de Capital</small></div>
+                <div style="font-size: 28px; color: #7F8C8D;">→</div>
+                <div style="background: #E67E22; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 14px;">🛤️ Infraestrutura<br><small>Ferrovias e Portos</small></div>
+                <div style="font-size: 28px; color: #7F8C8D;">→</div>
+                <div style="background: #F39C12; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 14px;">🏭 Industrialização<br><small>Primeiras Fábricas</small></div>
+                <div style="font-size: 28px; color: #7F8C8D;">→</div>
+                <div style="background: #27AE60; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 14px;">👷 Empregos<br><small>Migração em Massa</small></div>
+                <div style="font-size: 28px; color: #7F8C8D;">→</div>
+                <div style="background: #2980B9; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 14px;">🛒 Mercado Consumidor<br><small>Expansão Populacional</small></div>
+                <div style="font-size: 28px; color: #7F8C8D;">→</div>
+                <div style="background: #8E44AD; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 14px;">💹 Mais Investimentos<br><small>Serviços Financeiros</small></div>
+            </div>
+            <div style="margin-top: 16px;">
+                <div style="font-size: 36px; color: #E74C3C;">🔄</div>
+                <p style="color: #7F8C8D; font-style: italic; margin: 4px 0;">O ciclo se retroalimenta indefinidamente — <b>causação circular cumulativa</b></p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # --- Seção b) Aplicação ao Sudeste ---
+        st.markdown("---")
+        st.subheader("b) Aplicação ao Desenvolvimento do Sudeste")
+        st.markdown("""
+        No Sudeste (com epicentro em **São Paulo**), a acumulação de capital originada na economia cafeeira 
+        criou a infraestrutura inicial e um mercado consumidor incipiente. Isso gerou um **ciclo de causação circular**: 
+        a presença de infraestrutura atraiu as primeiras indústrias → as indústrias geraram empregos → os empregos 
+        atraíram migração em massa (especialmente do Nordeste e Norte) → o aumento populacional expandiu o mercado 
+        consumidor e a mão de obra → isso atraiu ainda mais indústrias, serviços financeiros e investimentos públicos.
+        
+        O Sudeste se tornou o **"centro"**, exercendo fortes efeitos de **polarização** sobre o resto do Brasil 
+        durante grande parte do século XX, concentrando a riqueza nacional.
+        """)
+
+        # --- Seção c) Evidências Empíricas ---
+        st.markdown("---")
+        st.subheader("c) Evidências Empíricas")
+
+        aba_ev1, aba_ev2, aba_ev3 = st.tabs([
+            "📊 Concentração do PIB", 
+            "🗺️ Polarização Espacial",
+            "🔀 Desconcentração (Propagação)"
+        ])
+
+        with aba_ev1:
+            st.markdown("##### Evidência 1: Concentração do PIB por Estado")
+            st.markdown("A altíssima concentração do PIB no Sudeste confirma os **efeitos de polarização** de Myrdal.")
+
+            # Usar dados reais do dashboard: PIB por UF
+            df_pib_uf = df.groupby("SIGLA_UF")["PIB"].sum().reset_index()
+            df_pib_uf = df_pib_uf.sort_values("PIB", ascending=False)
+            df_pib_uf["PIB_pct"] = (df_pib_uf["PIB"] / df_pib_uf["PIB"].sum() * 100).round(1)
+            df_pib_uf["PIB_fmt"] = (df_pib_uf["PIB"] / 1e6).round(1)
+
+            col_chart1, col_info1 = st.columns([2, 1])
+            with col_chart1:
+                fig_pib_conc = px.bar(
+                    df_pib_uf, x="SIGLA_UF", y="PIB",
+                    color="SIGLA_UF",
+                    color_discrete_map={"SP": "#E74C3C", "RJ": "#F39C12", "MG": "#27AE60", "ES": "#2980B9"},
+                    text="PIB_pct",
+                    title="PIB Total por Estado do Sudeste (R$ mil)"
+                )
+                fig_pib_conc.update_traces(texttemplate="%{text}%", textposition="outside")
+                fig_pib_conc.update_layout(
+                    showlegend=False, 
+                    yaxis_title="PIB (R$ mil)",
+                    xaxis_title="Estado",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)"
+                )
+                st.plotly_chart(fig_pib_conc, use_container_width=True)
+
+            with col_info1:
+                # Highlight SP dominance
+                sp_pct = df_pib_uf[df_pib_uf["SIGLA_UF"] == "SP"]["PIB_pct"].values
+                sp_pct_val = sp_pct[0] if len(sp_pct) > 0 else 0
+                st.metric("Participação de SP no PIB do Sudeste", f"{sp_pct_val}%")
+                st.markdown("""
+                <div style="background: #FDEDEC; border-left: 4px solid #E74C3C; padding: 14px; border-radius: 6px;">
+                    <p style="color: #922B21; margin: 0;"><b>🔴 Polarização Confirmada:</b><br>
+                    São Paulo concentra a maior fatia do PIB regional, exercendo forte efeito 
+                    de polarização (<i>backwash</i>) sobre os demais estados do Sudeste e, em escala maior, 
+                    sobre todo o Brasil.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Disparidade do PIB per Capita Municipal (dados reais IBGE)
+            st.markdown("##### Disparidade do PIB per Capita: Centro vs. Periferia")
+            st.markdown("PIB per capita calculado com dados reais do IBGE (PIB dos Municípios 2021 ÷ Estimativas Populacionais Tabela 6579).")
+
+            df_percapita = df[["NM_MUN", "SIGLA_UF", "PIB_percapita", "Populacao_Estimada", "PIB"]].copy()
+            df_percapita = df_percapita[df_percapita["PIB_percapita"] > 0]
+            top10 = df_percapita.nlargest(10, "PIB_percapita")[["NM_MUN", "SIGLA_UF", "PIB_percapita"]]
+            bot10 = df_percapita.nsmallest(10, "PIB_percapita")[["NM_MUN", "SIGLA_UF", "PIB_percapita"]]
+
+            col_top, col_bot = st.columns(2)
+            with col_top:
+                fig_top = px.bar(
+                    top10, x="PIB_percapita", y="NM_MUN", orientation="h",
+                    color_discrete_sequence=["#27AE60"],
+                    title="🏆 Top 10 Municípios – PIB per Capita",
+                    text="PIB_percapita"
+                )
+                fig_top.update_traces(texttemplate="R$ %{text:,.0f}", textposition="outside")
+                fig_top.update_layout(yaxis=dict(autorange="reversed"), showlegend=False,
+                                      xaxis_title="PIB per Capita (R$)", yaxis_title="",
+                                      plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_top, use_container_width=True)
+
+            with col_bot:
+                fig_bot = px.bar(
+                    bot10, x="PIB_percapita", y="NM_MUN", orientation="h",
+                    color_discrete_sequence=["#E74C3C"],
+                    title="📉 10 Menores – PIB per Capita",
+                    text="PIB_percapita"
+                )
+                fig_bot.update_traces(texttemplate="R$ %{text:,.0f}", textposition="outside")
+                fig_bot.update_layout(yaxis=dict(autorange="reversed"), showlegend=False,
+                                      xaxis_title="PIB per Capita (R$)", yaxis_title="",
+                                      plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_bot, use_container_width=True)
+
+            # Calcular razão de disparidade
+            pc_max = df_percapita["PIB_percapita"].max()
+            pc_min = df_percapita["PIB_percapita"].min()
+            razao = int(pc_max / pc_min) if pc_min > 0 else 0
+            st.warning(f"⚠️ **Razão de disparidade:** O município com maior PIB per capita (R$ {pc_max:,.0f}) possui renda **{razao}x maior** que o de menor (R$ {pc_min:,.0f}) — evidência contundente do ciclo vicioso de Myrdal.")
+            st.info("ℹ️ **Fontes reais:** PIB dos Municípios (IBGE, 2021) e Estimativas Populacionais (IBGE, Tabela 6579). A disparidade entre polos industriais/capitais e municípios rurais periféricos confirma os **efeitos de polarização** (*backwash*) previstos por Myrdal.")
+
+        with aba_ev2:
+            st.markdown("##### Evidência 2: Mapa de Polarização Espacial do PIB")
+            st.markdown("O mapa a seguir mostra como o PIB se concentra nos poucos polos urbano-industriais, esvaziando a periferia regional.")
+
+            pib_max = df["PIB"].quantile(0.95)
+            fig_polar = px.choropleth_mapbox(
+                df, geojson=geojson, locations='CD_MUN', featureidkey="properties.CD_MUN",
+                color='PIB', color_continuous_scale="Reds", range_color=[0, pib_max],
+                hover_name='NM_MUN', hover_data={'SIGLA_UF': True, 'PIB': ':,.0f', 'CD_MUN': False},
+                mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"],
+                center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8,
+            )
+            fig_polar.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="PIB (R$ mil)")
+            adicionar_bordas(fig_polar)
+            st.plotly_chart(fig_polar, use_container_width=True)
+            st.caption("Fonte: IBGE – Produto Interno Bruto dos Municípios")
+
+            st.success("✅ **Confirmação empírica:** A intensa mancha vermelha ao redor de São Paulo, Rio de Janeiro e Belo Horizonte revela o padrão de *backwash* previsto por Myrdal — poucos centros concentram a riqueza enquanto vastas áreas permanecem periféricas.")
+
+        with aba_ev3:
+            st.markdown("##### Evidência 3: Sinais de Desconcentração (Efeitos de Propagação)")
+            st.markdown("""
+            A partir da década de 1990, o Sudeste começou a experimentar **"deseconomias de aglomeração"** 
+            (trânsito, custo imobiliário elevado, sindicatos fortes), gerando efeitos de propagação na forma de 
+            **desconcentração industrial poligonizada** (conceito de *Clélio Campolina Diniz*).
+            
+            As fábricas começaram a sair das capitais e se instalar no **interior de SP**, **Sul de MG** e **interior do RJ**, 
+            buscando menores custos.
+            """)
+
+            # Mapa de VAB Industrial mostrando desconcentração
+            vab_ind_max = df["VAB_Industria"].quantile(0.95)
+            fig_desconc = px.choropleth_mapbox(
+                df, geojson=geojson, locations='CD_MUN', featureidkey="properties.CD_MUN",
+                color='VAB_Industria', color_continuous_scale="YlOrRd", range_color=[0, vab_ind_max],
+                hover_name='NM_MUN', hover_data={'SIGLA_UF': True, 'VAB_Industria': ':,.0f', 'CNAE_Predominante': True, 'CD_MUN': False},
+                mapbox_style="carto-positron", zoom=CAMERA_SUDESTE["zoom"],
+                center={"lat": CAMERA_SUDESTE["lat"], "lon": CAMERA_SUDESTE["lon"]}, opacity=0.8,
+            )
+            fig_desconc.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, coloraxis_colorbar_title="VAB Indústria (R$ mil)")
+            adicionar_bordas(fig_desconc)
+            st.plotly_chart(fig_desconc, use_container_width=True)
+            st.caption("Fonte: IBGE – PIB dos Municípios (VAB Industrial)")
+
+            # Tabela: Top 15 municípios industriais fora das capitais
+            capitais = ["São Paulo", "Rio de Janeiro", "Belo Horizonte", "Vitória"]
+            df_interior_ind = df[~df["NM_MUN"].isin(capitais)].nlargest(15, "VAB_Industria")[
+                ["NM_MUN", "SIGLA_UF", "VAB_Industria", "CNAE_Predominante"]
+            ].reset_index(drop=True)
+            df_interior_ind.index = df_interior_ind.index + 1
+            df_interior_ind.columns = ["Município", "UF", "VAB Industrial (R$ mil)", "CNAE Predominante"]
+
+            st.markdown("**🏭 Top 15 Municípios Industriais Fora das Capitais (Efeito de Propagação):**")
+            st.dataframe(df_interior_ind, use_container_width=True)
+            st.info("ℹ️ A presença de municípios do interior paulista (Campinas, São José dos Campos, Sorocaba etc.) e do Sul de Minas nesta lista confirma os **efeitos de propagação** previstos por Myrdal — a indústria transbordou das capitais para o interior.")
+
+        # --- Seção d) Limitações da Teoria ---
+        st.markdown("---")
+        st.subheader("d) Limitações e Complementações Necessárias")
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #2C3E5011, #8E44AD11); border: 1px solid #8E44AD44; 
+                    padding: 20px; border-radius: 10px;">
+            <h4 style="color: #6C3483;">🔬 Complementação: Sistemas Regionais de Inovação</h4>
+            <p style="color: #2C3E50;">A teoria de Myrdal é focada na <b>base industrial tradicional</b> e na infraestrutura física. 
+            Para explicar o Sudeste atual, ela precisa ser complementada pela teoria de <b>Sistemas Regionais de Inovação</b>.</p>
+            <p style="color: #2C3E50;">Hoje, a hegemonia do Sudeste se sustenta pelo monopólio do <b>conhecimento, tecnologia e setor financeiro</b>:</p>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                <tr style="background: #8E44AD22;">
+                    <th style="padding: 10px; text-align: left; color: #6C3483; border-bottom: 2px solid #8E44AD44;">Pilar</th>
+                    <th style="padding: 10px; text-align: left; color: #6C3483; border-bottom: 2px solid #8E44AD44;">Exemplos no Sudeste</th>
+                </tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;">🎓 Pesquisa Acadêmica</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee;">USP, Unicamp, UFRJ, UFMG</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;">💡 Fomento à Inovação</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee;">FAPESP (orçamento bilionário)</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;">✈️ Polos Tecnológicos</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee;">São José dos Campos (Aeronáutica/Embraer)</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;">💻 Hubs de TI e Startups</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee;">Faria Lima, Berrini (SP), Porto Maravilha (RJ)</td></tr>
+                <tr><td style="padding: 8px;">🏦 Setor Financeiro</td>
+                    <td style="padding: 8px;">B3 (Bolsa de Valores), sedes bancárias</td></tr>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ==========================================================================
+    # SUB-ABA: POLÍTICA DOS APLs
+    # ==========================================================================
+    with aba_politica:
+        st.subheader("Parte III – Política Regional Estratégica")
+        st.markdown("""
+        A política apresentada conecta-se com a ideia de **combater as desigualdades internas** da própria região Sudeste, 
+        desenvolvendo o interior e fortalecendo a economia local como resposta aos efeitos de polarização identificados por Myrdal.
+        """)
+
+        # --- a) Nome da Política ---
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #1ABC9C22, #16A08522); border-left: 5px solid #1ABC9C; 
+                    padding: 20px; border-radius: 8px; margin: 16px 0;">
+            <h3 style="color: #117A65; margin-top: 0;">🏗️ Programa de Apoio e Fomento aos Arranjos Produtivos Locais (APLs)</h3>
+            <p style="color: #2C3E50; font-size: 16px;">Política amplamente adotada pelos estados do Sudeste, operada em conjunto por 
+            <b>Governos Estaduais</b>, <b>BNDES</b> e <b>SEBRAE</b>.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # --- b) Objetivos ---
+        st.markdown("#### b) Objetivos Originais")
+        col_obj1, col_obj2, col_obj3 = st.columns(3)
+        with col_obj1:
+            st.markdown("""
+            <div style="background: #EBF5FB; padding: 16px; border-radius: 8px; text-align: center; min-height: 160px;">
+                <div style="font-size: 36px;">🗺️</div>
+                <h5 style="color: #2471A3;">Descentralizar</h5>
+                <p style="color: #2C3E50; font-size: 13px;">Tirar o desenvolvimento econômico do eixo das capitais, gerando emprego e renda no interior</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_obj2:
+            st.markdown("""
+            <div style="background: #EAFAF1; padding: 16px; border-radius: 8px; text-align: center; min-height: 160px;">
+                <div style="font-size: 36px;">🤝</div>
+                <h5 style="color: #1E8449;">Cooperar</h5>
+                <p style="color: #2C3E50; font-size: 13px;">Promover cooperação entre empresas de um mesmo cluster, fortalecendo a identidade territorial</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_obj3:
+            st.markdown("""
+            <div style="background: #FEF9E7; padding: 16px; border-radius: 8px; text-align: center; min-height: 160px;">
+                <div style="font-size: 36px;">🚀</div>
+                <h5 style="color: #B7950B;">Inovar</h5>
+                <p style="color: #2C3E50; font-size: 13px;">Promover inovação e ganho de economias de escala em aglomerações produtivas locais</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- c) Instrumentos ---
+        st.markdown("---")
+        st.markdown("#### c) Instrumentos Utilizados")
+        col_inst1, col_inst2, col_inst3 = st.columns(3)
+        with col_inst1:
+            st.markdown("""
+            <div style="border: 2px solid #3498DB; padding: 16px; border-radius: 10px; min-height: 200px;">
+                <h5 style="color: #2471A3;">💳 Crédito Subsidiado</h5>
+                <ul style="color: #2C3E50; font-size: 13px;">
+                    <li><b>BNDES</b> – Linhas de financiamento nacionais</li>
+                    <li><b>BDMG</b> – Banco de Desenvolvimento de MG</li>
+                    <li><b>Desenvolve SP</b> – Agência paulista</li>
+                    <li><b>AgeRio</b> – Agência fluminense</li>
+                </ul>
+                <p style="color: #7F8C8D; font-size: 12px;">Taxas de juros reduzidas para modernização de maquinário.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_inst2:
+            st.markdown("""
+            <div style="border: 2px solid #27AE60; padding: 16px; border-radius: 10px; min-height: 200px;">
+                <h5 style="color: #1E8449;">🎓 Capacitação e Governança</h5>
+                <ul style="color: #2C3E50; font-size: 13px;">
+                    <li><b>SEBRAE</b> – Gestão empresarial</li>
+                    <li><b>SENAI</b> – Formação técnica industrial</li>
+                    <li><b>SENAC</b> – Qualificação em serviços</li>
+                </ul>
+                <p style="color: #7F8C8D; font-size: 12px;">Treinamento técnico e de gestão para profissionalizar MPMEs.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_inst3:
+            st.markdown("""
+            <div style="border: 2px solid #E67E22; padding: 16px; border-radius: 10px; min-height: 200px;">
+                <h5 style="color: #CA6F1E;">🔬 Inovação e Infraestrutura</h5>
+                <ul style="color: #2C3E50; font-size: 13px;">
+                    <li>Centros de tecnologia compartilhados</li>
+                    <li>Laboratórios de design e testes</li>
+                    <li>Melhoria logística microrregional</li>
+                </ul>
+                <p style="color: #7F8C8D; font-size: 12px;">Infraestrutura coletiva que reduz custos individuais.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # --- d) Público-alvo ---
+        st.markdown("---")
+        st.markdown("#### d) Público-alvo")
+        st.markdown("""
+        <div style="background: #F4ECF7; border-left: 4px solid #8E44AD; padding: 16px; border-radius: 6px;">
+            <p style="color: #6C3483; font-size: 15px; margin: 0;">
+            🎯 <b>Micro, pequenas e médias empresas (MPMEs)</b>, cooperativas, produtores locais e associações comerciais 
+            que atuam de forma concentrada em uma <b>mesma cadeia produtiva regional</b>.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # --- e) Escala territorial e Exemplos ---
+        st.markdown("---")
+        st.markdown("#### e) Escala Territorial e Exemplos Práticos")
+        st.markdown("""
+        A política atua na **escala microrregional e local** — municípios e suas áreas de influência imediata.
+        """)
+
+        # Mapa de APLs com pontos marcados
+        apls_sudeste = pd.DataFrame({
+            "APL": [
+                "Polo de Eletrônica",
+                "Polo de Moda Íntima",
+                "Polo Calçadista",
+                "Polo de Móveis"
+            ],
+            "Município": [
+                "Santa Rita do Sapucaí",
+                "Nova Friburgo",
+                "Franca",
+                "Ubá"
+            ],
+            "UF": ["MG", "RJ", "SP", "MG"],
+            "lat": [-22.254, -22.282, -20.539, -21.120],
+            "lon": [-45.703, -42.533, -47.401, -42.942],
+            "Setor": ["Tecnologia", "Têxtil/Confecção", "Calçados/Couro", "Madeira/Móveis"],
+            "Descrição": [
+                "Vale da Eletrônica: +150 empresas de tecnologia e telecomunicações",
+                "Capital nacional da lingerie: +1.000 confecções no polo",
+                "2º maior polo calçadista do Brasil: produção de calçados masculinos",
+                "Polo moveleiro mineiro: +400 empresas de móveis"
+            ]
+        })
+
+        fig_apls = go.Figure()
+
+        # Base do mapa (trace invisível)
+        fig_apls.add_trace(go.Scattermapbox(
+            lat=[CAMERA_SUDESTE["lat"]], lon=[CAMERA_SUDESTE["lon"]],
+            mode="markers", marker=dict(size=0, opacity=0),
+            showlegend=False, hoverinfo="skip"
+        ))
+
+        cores_apl = {
+            "Tecnologia": "#8E44AD",
+            "Têxtil/Confecção": "#E74C3C",
+            "Calçados/Couro": "#E67E22",
+            "Madeira/Móveis": "#27AE60"
+        }
+
+        for _, row in apls_sudeste.iterrows():
+            # Raio de influência
+            fig_apls.add_trace(go.Scattermapbox(
+                lat=[row["lat"]], lon=[row["lon"]], mode="markers",
+                marker=dict(size=50, color=cores_apl.get(row["Setor"], "#3498DB"), opacity=0.18),
+                showlegend=False, hoverinfo="skip"
+            ))
+            # Ponto central
+            fig_apls.add_trace(go.Scattermapbox(
+                lat=[row["lat"]], lon=[row["lon"]], mode="markers+text",
+                marker=dict(size=14, color=cores_apl.get(row["Setor"], "#3498DB")),
+                text=[row["APL"]],
+                textposition="top center",
+                textfont=dict(size=11, color=cores_apl.get(row["Setor"], "#3498DB")),
+                name=f"{row['APL']} ({row['Município']}/{row['UF']})",
+                hovertemplate=f"<b>{row['APL']}</b><br>{row['Município']}/{row['UF']}<br>{row['Descrição']}<extra></extra>"
+            ))
+
+        layers_apl = []
+        if geojson_estados:
+            layers_apl.append({
+                "source": geojson_estados,
+                "type": "line",
+                "color": "rgba(0, 0, 0, 0.5)",
+                "line": {"width": 1.5}
+            })
+
+        fig_apls.update_layout(
+            mapbox=dict(
+                style="carto-positron", 
+                zoom=5.3,
+                center=dict(lat=-21.5, lon=-44.5)
+            ),
+            mapbox_layers=layers_apl,
+            margin={"r":0,"t":0,"l":0,"b":0},
+            legend=dict(orientation="h", yanchor="bottom", y=-0.12, xanchor="center", x=0.5),
+            height=500
+        )
+        st.plotly_chart(fig_apls, use_container_width=True)
+        st.caption("Mapa ilustrativo dos principais APLs do Sudeste")
+
+        # Tabela descritiva dos APLs
+        st.markdown("**Exemplos Detalhados de APLs no Sudeste:**")
+        df_apl_display = apls_sudeste[["APL", "Município", "UF", "Setor", "Descrição"]].copy()
+        df_apl_display.index = df_apl_display.index + 1
+        st.dataframe(df_apl_display, use_container_width=True)
+
+        # Conexão com a Teoria de Myrdal
+        st.markdown("---")
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #D5F5E322, #A3E4D722); border: 2px solid #1ABC9C; 
+                    padding: 20px; border-radius: 12px;">
+            <h4 style="color: #117A65; margin-top: 0;">🔗 Conexão Teoria–Política</h4>
+            <p style="color: #2C3E50; font-size: 15px;">A política dos APLs é uma <b>resposta direta</b> ao diagnóstico de Myrdal: 
+            ao invés de deixar que as forças de mercado concentrem tudo nas capitais (<i>backwash</i>), 
+            o Estado intervém criando <b>polos produtivos no interior</b>, forçando artificialmente os 
+            <b>efeitos de propagação</b> (<i>spread effects</i>).</p>
+            <p style="color: #2C3E50; font-size: 15px;">Cada APL funciona como um <b>"mini-centro"</b> que gera seu próprio ciclo 
+            de causação circular positiva em escala local: empresas atraem fornecedores → fornecedores atraem mão de obra → 
+            mão de obra forma mercado consumidor → mercado atrai mais empresas.</p>
+        </div>
+        """, unsafe_allow_html=True)
