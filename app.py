@@ -714,13 +714,14 @@ with tab6:
 
             df_percapita = df[["NM_MUN", "SIGLA_UF", "PIB_percapita", "Populacao_Estimada", "PIB"]].copy()
             df_percapita = df_percapita[df_percapita["PIB_percapita"] > 0]
-            top10 = df_percapita.nlargest(10, "PIB_percapita")[["NM_MUN", "SIGLA_UF", "PIB_percapita"]]
-            bot10 = df_percapita.nsmallest(10, "PIB_percapita")[["NM_MUN", "SIGLA_UF", "PIB_percapita"]]
+            df_percapita["Municipio"] = df_percapita["NM_MUN"] + " (" + df_percapita["SIGLA_UF"] + ")"
+            top10 = df_percapita.nlargest(10, "PIB_percapita")[["Municipio", "PIB_percapita"]]
+            bot10 = df_percapita.nsmallest(10, "PIB_percapita")[["Municipio", "PIB_percapita"]]
 
             col_top, col_bot = st.columns(2)
             with col_top:
                 fig_top = px.bar(
-                    top10, x="PIB_percapita", y="NM_MUN", orientation="h",
+                    top10, x="PIB_percapita", y="Municipio", orientation="h",
                     color_discrete_sequence=["#27AE60"],
                     title="🏆 Top 10 Municípios – PIB per Capita",
                     text="PIB_percapita"
@@ -733,7 +734,7 @@ with tab6:
 
             with col_bot:
                 fig_bot = px.bar(
-                    bot10, x="PIB_percapita", y="NM_MUN", orientation="h",
+                    bot10, x="PIB_percapita", y="Municipio", orientation="h",
                     color_discrete_sequence=["#E74C3C"],
                     title="📉 10 Menores – PIB per Capita",
                     text="PIB_percapita"
