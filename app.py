@@ -1204,10 +1204,8 @@ with tab6:
         st.subheader("🔗 Questão 5 — A Política Alterou a Trajetória de Desenvolvimento?")
 
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #2C3E5008, #1ABC9C15); border: 2px solid #1ABC9C88; 
-                    padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+        <div style="background: linear-gradient(135deg, #2C3E5008, #1ABC9C15); border: 2px solid #1ABC9C88; padding: 24px; border-radius: 12px; margin-bottom: 20px;">
             <h4 style="color: #117A65; margin-top: 0;">Veredicto Integrado: Teoria de Myrdal × Política dos APLs</h4>
-            
             <h5 style="color:#1A5276;">a) Resultados vs. Mecanismos Teóricos</h5>
             <p style="color:#2C3E50; font-size:14px;">
             Myrdal prevê que, sem intervenção estatal, os <b>efeitos de polarização</b> (<i>backwash</i>) dominam.
@@ -1217,7 +1215,6 @@ with tab6:
             <p style="color:#2C3E50; font-size:14px;">
             <b>Evidência:</b> O crescimento do VAB industrial em municípios como Franca, Nova Friburgo e Santa Rita do Sapucaí
             demonstra que é possível criar <b>"mini-centros"</b> que geram seu próprio <i>spread effect</i>.</p>
-
             <h5 style="color:#1A5276;">b) Fortaleceu ou Enfraqueceu os Fatores de Desenvolvimento?</h5>
             <p style="color:#2C3E50; font-size:14px;">
             <b>Fortaleceu parcialmente.</b> Os APLs consolidaram três fatores-chave do desenvolvimento regional:</p>
@@ -1228,7 +1225,6 @@ with tab6:
             </ul>
             <p style="color:#2C3E50; font-size:14px;">Porém, <b>não enfraqueceu</b> o principal fator de polarização: a hegemonia financeira
             e tecnológica de SP/RJ permanece intocada.</p>
-
             <h5 style="color:#1A5276;">c) A Intervenção Foi Suficiente?</h5>
             <p style="color:#2C3E50; font-size:14px;">
             <b>Não.</b> Os APLs sozinhos são insuficientes para alterar a trajetória macroespacial do Sudeste.
