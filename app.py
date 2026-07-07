@@ -869,7 +869,7 @@ with tab6:
     # SUB-ABA: POLÍTICA DOS APLs
     # ==========================================================================
     with aba_politica:
-        st.subheader("Parte III – Política Regional Estratégica")
+        st.subheader("Política Regional Estratégica")
         st.markdown("""
         A política apresentada conecta-se com a ideia de **combater as desigualdades internas** da própria região Sudeste, 
         desenvolvendo o interior e fortalecendo a economia local como resposta aos efeitos de polarização identificados por Myrdal.
@@ -1083,7 +1083,7 @@ with tab6:
         # QUESTÃO 4 — Avaliação por Indicadores Socioeconômicos
         # ==================================================================
         st.markdown("---")
-        st.subheader("📊 Questão 4 — Avaliação por Indicadores Socioeconômicos")
+        st.subheader("📊 Avaliação por Indicadores Socioeconômicos")
         st.markdown("Análise dos resultados da **Política de APLs** utilizando indicadores reais e proxy do Sudeste.")
 
         # a) Indicadores utilizados
@@ -1201,7 +1201,7 @@ with tab6:
         # QUESTÃO 5 — Integração entre Teoria e Política
         # ==================================================================
         st.markdown("---")
-        st.subheader("🔗 Questão 5 — A Política Alterou a Trajetória de Desenvolvimento?")
+        st.subheader("🔗 A Política Alterou a Trajetória de Desenvolvimento?")
 
         st.markdown("""
         <div style="background: linear-gradient(135deg, #2C3E5008, #1ABC9C15); border: 2px solid #1ABC9C88; padding: 24px; border-radius: 12px; margin-bottom: 20px;">
@@ -1242,7 +1242,7 @@ with tab6:
         # QUESTÃO 6 — Recomendações para o Futuro
         # ==================================================================
         st.markdown("---")
-        st.subheader("🚀 Questão 6 — Três Propostas para os Próximos 10 Anos")
+        st.subheader("🚀 Três Propostas para os Próximos 10 Anos")
 
         col_prop1, col_prop2, col_prop3 = st.columns(3)
         with col_prop1:
