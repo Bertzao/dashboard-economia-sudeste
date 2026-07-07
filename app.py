@@ -1078,3 +1078,229 @@ with tab6:
             mão de obra forma mercado consumidor → mercado atrai mais empresas.</p>
         </div>
         """, unsafe_allow_html=True)
+
+        # ==================================================================
+        # QUESTÃO 4 — Avaliação por Indicadores Socioeconômicos
+        # ==================================================================
+        st.markdown("---")
+        st.subheader("📊 Questão 4 — Avaliação por Indicadores Socioeconômicos")
+        st.markdown("Análise dos resultados da **Política de APLs** utilizando indicadores reais e proxy do Sudeste.")
+
+        # a) Indicadores utilizados
+        st.markdown("""
+        <div style="background: #EBF5FB; border-left: 4px solid #2980B9; padding: 16px; border-radius: 6px; margin-bottom: 16px;">
+            <h5 style="color: #1A5276; margin-top: 0;">a) Indicadores Utilizados</h5>
+            <table style="width:100%; border-collapse: collapse;">
+                <tr style="background: #2980B922;">
+                    <th style="padding:8px; text-align:left; color:#1A5276;">Indicador</th>
+                    <th style="padding:8px; text-align:left; color:#1A5276;">Fonte</th>
+                    <th style="padding:8px; text-align:left; color:#1A5276;">O que mede</th>
+                </tr>
+                <tr><td style="padding:6px; border-bottom:1px solid #ddd;">PIB per capita municipal</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">IBGE (PIB Municípios)</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">Renda média por habitante</td></tr>
+                <tr><td style="padding:6px; border-bottom:1px solid #ddd;">VAB Industrial (interior)</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">IBGE (PIB Municípios)</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">Diversificação produtiva fora das capitais</td></tr>
+                <tr><td style="padding:6px; border-bottom:1px solid #ddd;">QL Industrial (Quociente Locacional)</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">Elaboração própria</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">Especialização industrial local</td></tr>
+                <tr><td style="padding:6px; border-bottom:1px solid #ddd;">Nº de empresas industriais (CNAE)</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">Receita Federal / CNAE</td>
+                    <td style="padding:6px; border-bottom:1px solid #ddd;">Geração de emprego e empreendedorismo</td></tr>
+                <tr><td style="padding:6px;">Razão PIB per capita (max/min)</td>
+                    <td style="padding:6px;">IBGE</td>
+                    <td style="padding:6px;">Desigualdade intrarregional</td></tr>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # b) Evolução antes e depois + c) Evidências + gráfico
+        col_ev_q4a, col_ev_q4b = st.columns(2)
+        with col_ev_q4a:
+            st.markdown("""
+            <div style="background: #EAFAF1; border-left: 4px solid #27AE60; padding: 16px; border-radius: 6px;">
+                <h5 style="color:#1E8449; margin-top:0;">b) Evolução Antes × Depois</h5>
+                <p style="color:#2C3E50; font-size:13px;">
+                <b>Antes dos APLs (pré-2000):</b> A produção industrial estava quase exclusivamente nas capitais e RM de SP.
+                O interior tinha vocação agropecuária com baixo PIB per capita.<br><br>
+                <b>Depois dos APLs (2000–2021):</b> Municípios-sede de APLs como <b>Franca, Nova Friburgo, Santa Rita do Sapucaí e Ubá</b>
+                apresentaram crescimento do VAB Industrial acima da média regional, com multiplicação de empresas formais
+                e melhoria relativa do PIB per capita.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_ev_q4b:
+            st.markdown("""
+            <div style="background: #FEF9E7; border-left: 4px solid #F39C12; padding: 16px; border-radius: 6px;">
+                <h5 style="color:#B7950B; margin-top:0;">c) Evidências de Emprego, Renda e Inovação</h5>
+                <p style="color:#2C3E50; font-size:13px;">
+                ✅ <b>Emprego:</b> APLs geraram milhares de postos formais — ex: Polo de Nova Friburgo emprega ~25 mil pessoas no setor têxtil.<br>
+                ✅ <b>Renda:</b> PIB per capita dos municípios-sede cresceu acima da média de municípios similares sem APL.<br>
+                ✅ <b>Inovação:</b> Santa Rita do Sapucaí (Vale da Eletrônica) concentra >150 empresas de tecnologia, com incubadoras e parceria com INATEL.<br>
+                ⚠️ <b>Diversificação:</b> Parcial — muitos APLs permanecem mono-setoriais, o que gera vulnerabilidade a choques externos.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Gráfico comparativo: PIB per capita dos municípios APL vs média regional
+        st.markdown("##### Comparativo: PIB per Capita — Municípios-Sede de APLs vs. Média Regional")
+        apls_municipios = ["Franca", "Nova Friburgo", "Ubá"]
+        # Santa Rita do Sapucaí pode não estar no dataset, usar fallback
+        df_apl_pib = df[df["NM_MUN"].isin(apls_municipios)][["NM_MUN", "SIGLA_UF", "PIB_percapita"]].copy()
+        media_regional = df["PIB_percapita"].median()
+
+        if not df_apl_pib.empty:
+            df_apl_pib["Tipo"] = "Município APL"
+            df_media = pd.DataFrame({"NM_MUN": ["Mediana Regional"], "SIGLA_UF": ["SE"], "PIB_percapita": [media_regional], "Tipo": ["Referência"]})
+            df_comp = pd.concat([df_apl_pib, df_media], ignore_index=True)
+            fig_comp = px.bar(
+                df_comp, x="NM_MUN", y="PIB_percapita", color="Tipo",
+                color_discrete_map={"Município APL": "#1ABC9C", "Referência": "#BDC3C7"},
+                text="PIB_percapita",
+                title="PIB per Capita: Municípios com APL vs. Mediana do Sudeste"
+            )
+            fig_comp.update_traces(texttemplate="R$ %{text:,.0f}", textposition="outside")
+            fig_comp.update_layout(
+                showlegend=True, xaxis_title="", yaxis_title="PIB per Capita (R$)",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_comp, use_container_width=True)
+        else:
+            st.info("Dados dos municípios-sede de APLs não encontrados no dataset para comparação direta.")
+
+        # d) Redução das desigualdades + e) Alinhamento aos objetivos + f) Efeitos não previstos
+        col_q4d, col_q4e = st.columns(2)
+        with col_q4d:
+            st.markdown("""
+            <div style="background: #FDEDEC; border-left: 4px solid #E74C3C; padding: 16px; border-radius: 6px;">
+                <h5 style="color:#922B21; margin-top:0;">d) Redução das Desigualdades?</h5>
+                <p style="color:#2C3E50; font-size:13px;">
+                <b>Parcialmente.</b> Os APLs criaram "ilhas de prosperidade" no interior, mas <b>não foram suficientes</b>
+                para reverter a polarização estrutural de SP e RJ. A razão de disparidade do PIB per capita entre
+                municípios-polo e periféricos continua extremamente elevada (ver Questão anterior).<br><br>
+                A desigualdade <b>intramunicipal</b> permanece alta — APLs beneficiam empresários, mas nem sempre transbordam
+                para toda a população local.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_q4e:
+            st.markdown("""
+            <div style="background: #F4ECF7; border-left: 4px solid #8E44AD; padding: 16px; border-radius: 6px;">
+                <h5 style="color:#6C3483; margin-top:0;">e) Alinhamento aos Objetivos + f) Efeitos Não Previstos</h5>
+                <p style="color:#2C3E50; font-size:13px;">
+                <b>e) Parcialmente alinhado:</b> Os APLs cumpriram os objetivos de gerar emprego e renda local,
+                mas ficaram aquém na <b>meta de inovação radical</b> — a maioria opera com tecnologia adaptada, não de fronteira.<br><br>
+                <b>f) Efeitos não previstos:</b><br>
+                ✅ <b>Positivo:</b> Fortalecimento da identidade territorial e turismo produtivo (ex: rota da moda em Nova Friburgo).<br>
+                ⚠️ <b>Negativo:</b> Dependência setorial excessiva — crises no setor (importação chinesa de calçados, por exemplo)
+                atingem <b>toda a economia</b> do município-sede.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ==================================================================
+        # QUESTÃO 5 — Integração entre Teoria e Política
+        # ==================================================================
+        st.markdown("---")
+        st.subheader("🔗 Questão 5 — A Política Alterou a Trajetória de Desenvolvimento?")
+
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #2C3E5008, #1ABC9C15); border: 2px solid #1ABC9C88; 
+                    padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+            <h4 style="color: #117A65; margin-top: 0;">Veredicto Integrado: Teoria de Myrdal × Política dos APLs</h4>
+            
+            <h5 style="color:#1A5276;">a) Resultados vs. Mecanismos Teóricos</h5>
+            <p style="color:#2C3E50; font-size:14px;">
+            Myrdal prevê que, sem intervenção estatal, os <b>efeitos de polarização</b> (<i>backwash</i>) dominam.
+            Os APLs funcionaram como <b>contra-mecanismos artificiais de propagação</b> (<i>spread</i>):
+            ao aglomerar empresas no interior, criaram ciclos de causação circular <b>positiva em escala local</b> —
+            exatamente o mecanismo que Myrdal diz ser necessário para romper o ciclo vicioso da periferia.</p>
+            <p style="color:#2C3E50; font-size:14px;">
+            <b>Evidência:</b> O crescimento do VAB industrial em municípios como Franca, Nova Friburgo e Santa Rita do Sapucaí
+            demonstra que é possível criar <b>"mini-centros"</b> que geram seu próprio <i>spread effect</i>.</p>
+
+            <h5 style="color:#1A5276;">b) Fortaleceu ou Enfraqueceu os Fatores de Desenvolvimento?</h5>
+            <p style="color:#2C3E50; font-size:14px;">
+            <b>Fortaleceu parcialmente.</b> Os APLs consolidaram três fatores-chave do desenvolvimento regional:</p>
+            <ul style="color:#2C3E50; font-size:14px;">
+                <li>✅ <b>Capital humano localizado</b> — formação técnica via SEBRAE/SENAI reteve mão de obra qualificada no interior</li>
+                <li>✅ <b>Economias de aglomeração</b> — clusters geraram externalidades positivas (troca de conhecimento, fornecedores compartilhados)</li>
+                <li>⚠️ <b>Inovação</b> — fortaleceu apenas em poucos casos (Santa Rita do Sapucaí); a maioria dos APLs inova pouco</li>
+            </ul>
+            <p style="color:#2C3E50; font-size:14px;">Porém, <b>não enfraqueceu</b> o principal fator de polarização: a hegemonia financeira
+            e tecnológica de SP/RJ permanece intocada.</p>
+
+            <h5 style="color:#1A5276;">c) A Intervenção Foi Suficiente?</h5>
+            <p style="color:#2C3E50; font-size:14px;">
+            <b>Não.</b> Os APLs sozinhos são insuficientes para alterar a trajetória macroespacial do Sudeste.
+            São necessárias <b>ações complementares</b> de maior escala:</p>
+            <ul style="color:#2C3E50; font-size:14px;">
+                <li>🏗️ Investimentos massivos em <b>infraestrutura logística</b> para o interior (rodovias, internet de alta velocidade)</li>
+                <li>🎓 Expansão de <b>universidades e centros de pesquisa</b> fora das capitais</li>
+                <li>💰 <b>Política fiscal descentralizada</b> — incentivos tributários diferenciados para regiões periféricas</li>
+                <li>🏛️ <b>Reforma federativa</b> que fortaleça a autonomia fiscal dos municípios menores</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ==================================================================
+        # QUESTÃO 6 — Recomendações para o Futuro
+        # ==================================================================
+        st.markdown("---")
+        st.subheader("🚀 Questão 6 — Três Propostas para os Próximos 10 Anos")
+
+        col_prop1, col_prop2, col_prop3 = st.columns(3)
+        with col_prop1:
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #8E44AD15, #6C348322); border: 2px solid #8E44AD; 
+                        padding: 20px; border-radius: 12px; min-height: 320px;">
+                <div style="font-size: 40px; text-align: center;">🌐</div>
+                <h5 style="color: #6C3483; text-align: center;">Proposta 1:<br>APLs Digitais e de Inovação</h5>
+                <p style="color: #2C3E50; font-size: 13px;">
+                Transformar os APLs tradicionais em <b>ecossistemas de inovação</b>, conectando-os a universidades e hubs tecnológicos.
+                Criar programas de <b>digitalização produtiva</b> (Indústria 4.0) para MPMEs do interior.</p>
+                <p style="color: #7F8C8D; font-size: 12px; font-style: italic;">
+                📖 <b>Fundamento:</b> Complementa Myrdal com a teoria de <b>Sistemas Regionais de Inovação</b> — 
+                a inovação é o principal motor da competitividade territorial no séc. XXI.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_prop2:
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #1ABC9C15, #16A08522); border: 2px solid #1ABC9C; 
+                        padding: 20px; border-radius: 12px; min-height: 320px;">
+                <div style="font-size: 40px; text-align: center;">🛤️</div>
+                <h5 style="color: #117A65; text-align: center;">Proposta 2:<br>Corredores Logísticos Interiorizados</h5>
+                <p style="color: #2C3E50; font-size: 13px;">
+                Expandir a <b>infraestrutura de transporte e internet</b> para microrregiões periféricas,
+                reduzindo o custo logístico que ainda prende atividades produtivas no litoral/capitais.
+                Priorizar conexões entre APLs existentes e portos secos.</p>
+                <p style="color: #7F8C8D; font-size: 12px; font-style: italic;">
+                📖 <b>Fundamento:</b> Dialoga com <b>Von Thünen e Weber</b> — a redução do custo de transporte 
+                amplia os anéis de viabilidade econômica e permite localização industrial no interior.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col_prop3:
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #E67E2215, #CA6F1E22); border: 2px solid #E67E22; 
+                        padding: 20px; border-radius: 12px; min-height: 320px;">
+                <div style="font-size: 40px; text-align: center;">🏛️</div>
+                <h5 style="color: #CA6F1E; text-align: center;">Proposta 3:<br>Governança Metropolitana Solidária</h5>
+                <p style="color: #2C3E50; font-size: 13px;">
+                Criar mecanismos de <b>redistribuição fiscal</b> entre municípios-polo e periféricos 
+                dentro das Regiões Metropolitanas. Implementar <b>Fundos de Equalização Regional</b> que 
+                transfiram parte da arrecadação dos centros para investimento nas bordas metropolitanas.</p>
+                <p style="color: #7F8C8D; font-size: 12px; font-style: italic;">
+                📖 <b>Fundamento:</b> Responde diretamente a <b>Myrdal</b> — a intervenção estatal redistributiva 
+                é necessária para compensar os efeitos de polarização que o mercado não resolve sozinho.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background: #F8F9FA; border: 1px solid #BDC3C7; padding: 16px; border-radius: 8px; margin-top: 16px; text-align: center;">
+            <p style="color: #7F8C8D; margin: 0; font-size: 13px;">
+            ✍️ <b>Nota Final:</b> As três propostas se baseiam nos dados analisados neste painel e dialogam com a Teoria de Myrdal (causação circular),
+            complementada pelos modelos de Von Thünen (custo de transporte), Weber (localização industrial) e Christaller (centralidade urbana).
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
