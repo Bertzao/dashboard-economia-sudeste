@@ -721,6 +721,7 @@ with tab6:
                     paper_bgcolor="rgba(0,0,0,0)"
                 )
                 st.plotly_chart(fig_pib_conc, use_container_width=True)
+                st.caption("Fonte: IBGE – Produto Interno Bruto dos Municípios")
 
             with col_info1:
                 # Highlight SP dominance
@@ -772,6 +773,8 @@ with tab6:
                                       xaxis_title="PIB per Capita (R$)", yaxis_title="",
                                       plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
                 st.plotly_chart(fig_bot, use_container_width=True)
+
+            st.caption("Fonte: IBGE – PIB dos Municípios e Estimativas Populacionais")
 
             # Calcular razão de disparidade
             pc_max = df_percapita["PIB_percapita"].max()
@@ -834,6 +837,7 @@ with tab6:
 
             st.markdown("**🏭 Top 15 Municípios Industriais Fora das Capitais (Efeito de Propagação):**")
             st.dataframe(df_interior_ind, use_container_width=True)
+            st.caption("Fonte: IBGE (VAB Industrial) e Receita Federal (CNAE Predominante)")
             st.info("ℹ️ A presença de municípios do interior paulista (Campinas, São José dos Campos, Sorocaba etc.) e do Sul de Minas nesta lista confirma os **efeitos de propagação** previstos por Myrdal — a indústria transbordou das capitais para o interior.")
 
         # --- Seção d) Limitações da Teoria ---
@@ -1055,13 +1059,14 @@ with tab6:
             height=500
         )
         st.plotly_chart(fig_apls, use_container_width=True)
-        st.caption("Mapa ilustrativo dos principais APLs do Sudeste")
+        st.caption("Mapa ilustrativo dos principais APLs do Sudeste. Fonte: SEBRAE e MDIC (Observatório Brasileiro de APLs)")
 
         # Tabela descritiva dos APLs
         st.markdown("**Exemplos Detalhados de APLs no Sudeste:**")
         df_apl_display = apls_sudeste[["APL", "Município", "UF", "Setor", "Descrição"]].copy()
         df_apl_display.index = df_apl_display.index + 1
         st.dataframe(df_apl_display, use_container_width=True)
+        st.caption("Fonte: Elaboração própria com base em dados do SEBRAE e MDIC")
 
         # Conexão com a Teoria de Myrdal
         st.markdown("---")
@@ -1165,6 +1170,7 @@ with tab6:
                 plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_comp, use_container_width=True)
+            st.caption("Fonte: IBGE – Produto Interno Bruto dos Municípios e Estimativas Populacionais")
         else:
             st.info("Dados dos municípios-sede de APLs não encontrados no dataset para comparação direta.")
 
